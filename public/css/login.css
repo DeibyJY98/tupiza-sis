@@ -1,0 +1,133 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: "Poppins", sans-serif;
+}
+
+body {
+  background-color: #464545;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* ----- CONTENEDOR PRINCIPAL ----- */
+.login-container {
+  display: flex;
+  width: 900px;
+  height: 520px;
+  background-color: #fff;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+/* ----- SECCIÓN IZQUIERDA (WELCOME) ----- */
+.login-welcome {
+  flex: 1.2;
+  background: linear-gradient(135deg, #333, #666);
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  position: relative;
+}
+
+.welcome-content {
+  padding: 30px;
+}
+
+.welcome-content h1 {
+  font-size: 2rem;
+  margin-bottom: 15px;
+}
+
+.welcome-content p {
+  font-size: 1rem;
+  margin-bottom: 25px;
+  color: #ddd;
+}
+
+.welcome-content img {
+  width: 100%;
+  max-width: 320px;
+  border-radius: 12px;
+  object-fit: cover;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* ----- SECCIÓN DERECHA (FORMULARIO) ----- */
+.login-form {
+  flex: 1;
+  background-color: #222;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+}
+
+.login-form h2 {
+  margin-bottom: 25px;
+  font-size: 1.8rem;
+}
+
+.form-group {
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  background-color: #333;
+  color: #eee;
+  font-size: 1rem;
+  outline: none;
+  transition: 0.3s;
+}
+
+.form-group input:focus {
+  background-color: #444;
+  box-shadow: 0 0 0 2px #007bff;
+}
+
+.form-options {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  font-size: 0.9rem;
+  margin-bottom: 25px;
+}
+
+.form-options a {
+  color: #007bff;
+  text-decoration: none;
+}
+
+.form-options a:hover {
+  text-decoration: underline;
+}
+
+/* ----- BOTÓN ----- */
+.btn {
+  width: 100%;
+  padding: 12px;
+  background: linear-gradient(90deg, #f4df8b 0%, #be6a29 100%);;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.btn:hover {
+  background-color: #0056b3;
+}

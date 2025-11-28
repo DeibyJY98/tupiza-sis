@@ -1,0 +1,154 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Poppins', sans-serif;
+  background-color: #f5f5f5;
+  color: #222;
+}
+
+/* Header */
+.top-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 15px 0;
+}
+
+.logo {
+  height: 60px;
+}
+
+/* Navbar */
+.navbar {
+  display: flex;
+  align-items: center;
+  border-top: 1px solid #aaa;
+  border-bottom: 1px solid #aaa;
+  padding: 10px 50px;
+  background-color: white;
+}
+
+.navbar ul {
+  display: flex;
+  list-style: none;
+  gap: 30px;
+}
+
+.navbar a {
+  text-decoration: none;
+  color: #333;
+  font-weight: 500;
+  position: relative;
+  padding-bottom: 5px;
+}
+
+.navbar a:hover {
+  color: #000;
+  border-bottom: 2px solid #000;
+}
+
+/* Alinear Logout a la derecha */
+.nav-left {
+  display: flex;
+}
+
+.nav-fin {
+  display: flex;
+  margin-left: auto;
+}
+
+.cart-icon {
+  font-size: 22px;
+  margin: 0 50px;
+  border: 2px solid #131313;
+  /*border-radius: 50%;*/
+  padding: 10px;
+  cursor: default;
+}
+
+/* Contenido principal */
+.content {
+  margin: 40px 80px;
+  background: rgb(63, 63, 63);
+  padding: 40px;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+/* Encabezado de tabla */
+.header-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+}
+
+.header-section h1 {
+  font-size: 1.8rem;
+}
+
+.btn-add {
+  background-color: #222;
+  color: white;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.btn-add:hover {
+  background-color: #000;
+}
+
+/* Tabla */
+.roles-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.roles-table thead {
+  background-color: #181414;
+}
+
+.roles-table th, .roles-table td {
+  padding: 15px;
+  border-bottom: 1px solid #ddd;
+}
+
+.roles-table tr:hover {
+  background-color: #f9f9f9;
+}
+
+/* Botones */
+.btn-edit, .btn-delete {
+  border: none;
+  padding: 6px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.btn-edit {
+  background-color: #007bff;
+  color: white;
+  margin-right: 5px;
+}
+
+.btn-edit:hover {
+  background-color: #0056b3;
+}
+
+.btn-delete {
+  background-color: #dc3545;
+  color: white;
+}
+
+.btn-delete:hover {
+  background-color: #b02a37;
+}
