@@ -13,6 +13,8 @@ use App\Http\Controllers\PersonaController;
 use App\Http\Controllers\PagoController;
 use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\ServicioExtraController;
+use App\Http\Controllers\TipoHabitacionController;
+use App\Http\Controllers\CaracteristicaController;
 
 //** PAGINA INICIAL **//
 Route::get('/', [AuthController::class, 'welcome'])->name('welcome');
@@ -66,6 +68,22 @@ Route::prefix('/servicio_extra')->group(function(){
     Route::post("/",[ServicioExtraController::class,'store'])->name('crear.servicio_extra');
     Route::post("/editar",[ServicioExtraController::class,'update'])->name('editar.servicio_extra');
     Route::post("/eliminar",[ServicioExtraController::class,'destroy'])->name('eliminar.servicio_extra');
+    Route::post("/asociar",[ServicioExtraController::class,'asociar'])->name('crear.habitacion_servicio_extra');
+    Route::post("/desasociar",[ServicioExtraController::class,'desasociar'])->name('eliminar.habitacion_servicio_extra');
+});
+//** PAGINA TIPO HABITACION **//
+Route::prefix('/tipo_habitacion')->group(function(){
+    Route::get("/",[TipoHabitacionController::class,'index'])->name('mostrar.tipo_habitacion');
+    Route::post("/",[TipoHabitacionController::class,'store'])->name('crear.tipo_habitacion');
+    Route::post("/editar",[TipoHabitacionController::class,'update'])->name('editar.tipo_habitacion');
+    Route::post("/eliminar",[TipoHabitacionController::class,'destroy'])->name('eliminar.tipo_habitacion');
+});
+//** PAGINA CARACTERISTICA **//
+Route::prefix('/caracteristica')->group(function(){
+    Route::get("/",[CaracteristicaController::class,'index'])->name('mostrar.caracteristica');
+    Route::post("/",[CaracteristicaController::class,'store'])->name('crear.caracteristica');
+    Route::post("/editar",[CaracteristicaController::class,'update'])->name('editar.caracteristica');
+    Route::post("/eliminar",[CaracteristicaController::class,'destroy'])->name('eliminar.caracteristica');
 });
 //** PAGINA RESERVA **//
 Route::prefix('/reserva')->group(function(){
@@ -74,6 +92,7 @@ Route::prefix('/reserva')->group(function(){
     Route::post("/editar",[ReservaController::class,'update'])->name('editar.reserva');
     Route::post("/eliminar",[ReservaController::class,'destroy'])->name('eliminar.reserva');
     Route::get('/fechas-ocupadas/{habitacion_id}', [ReservaController::class, 'getFechasOcupadas'])->name('reserva.fechas-ocupadas');
+    Route::get('/pdf', [ReservaController::class, 'pdf'])->name('reserva.pdf');
 });
 //** PAGINA PERSONA **//
 Route::prefix('/persona')->group(function(){
@@ -85,9 +104,9 @@ Route::prefix('/persona')->group(function(){
 //** PAGINA CLIENTE **//
 Route::prefix('/cliente')->group(function(){
     Route::get("/",[ClienteController::class,'index'])->name('mostrar.cliente');
-    //Route::post("/",[PersonaController::class,'store'])->name('crear.persona');
-    //Route::post("/editar",[PersonaController::class,'update'])->name('editar.persona');
-    //Route::post("/eliminar",[PersonaController::class,'destroy'])->name('eliminar.persona');
+    Route::post("/",[ClienteController::class,'store'])->name('crear.cliente');
+    Route::post("/editar",[ClienteController::class,'update'])->name('editar.cliente');
+    Route::post("/eliminar",[ClienteController::class,'destroy'])->name('eliminar.cliente');
 });
 //** PAGINA TRABAJADOR **//
 Route::prefix('/trabajador')->group(function(){
@@ -102,4 +121,5 @@ Route::prefix('/pago')->group(function(){
     Route::post("/",[PagoController::class,'store'])->name('crear.pago');
     Route::post("/editar",[PagoController::class,'update'])->name('editar.pago');
     Route::post("/eliminar",[PagoController::class,'destroy'])->name('eliminar.pago');
+    Route::get('/pdf', [PagoController::class, 'pdf'])->name('pago.pdf');
 });

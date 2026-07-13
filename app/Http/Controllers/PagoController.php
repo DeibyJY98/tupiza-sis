@@ -7,6 +7,7 @@ use App\Models\Reserva;
 use App\Models\Cliente;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class PagoController extends Controller
 {
@@ -20,6 +21,14 @@ class PagoController extends Controller
       $clientes = Cliente::get();
 
       return view("pago.index", compact('datos','reservas','clientes'));
+    }
+
+    public function pdf(){
+      $datos = Pago::get();
+      $datos = $datos->map->toShow();
+
+      $pdf = Pdf::loadView('pago.pdf', compact('datos'));
+      return $pdf->stream('pagos.pdf');
     }
 
     public function store(Request $request){

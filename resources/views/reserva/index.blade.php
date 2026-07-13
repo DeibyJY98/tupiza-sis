@@ -17,7 +17,7 @@
   <div class="header-section">
     <h1>Gestión de Reservas</h1>    
     <div class="right-buttons">
-      <button class="btn yellow">📄 PDF</button>
+      <a href="{{ route('reserva.pdf') }}" target="_blank" class="btn yellow">📄 PDF</a>
       <button class="btn green" id="abrirModalCrear">Crear Reserva</button>
     </div>
   </div>

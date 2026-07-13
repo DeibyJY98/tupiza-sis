@@ -15,7 +15,7 @@
     <h1>Gestión de Usuarios</h1>    
     <div class="right-buttons">
       <button class="btn yellow">📄 PDF</button>
-      <button class="btn green" id="abrirModalCrear">Crear usuario</button>
+      <button class="btn green" id="abrirModalCrear">Crear Usuario</button>
     </div>
   </div>
   <!--SECCION DE FILTROS -->

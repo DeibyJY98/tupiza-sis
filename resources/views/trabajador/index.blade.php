@@ -22,7 +22,7 @@
         <h1>Gestión de Trabajadores</h1>
         <div class="right-buttons">
             <button class="btn yellow">📄 PDF</button>
-            <button class="btn green" id="abrirModalCrear">Crear Cliente</button>
+            <button class="btn green" id="abrirModalCrear">Crear Trabajador</button>
         </div>
     </div>
     <!--SECCION DE FILTROS -->
@@ -89,10 +89,11 @@
                     <button class="btn btn-edit btn-abrir-editar"
                         data-id="{{ $dato['id'] }}"
                         data-cargo="{{ $dato['cargo'] }}"
+                        data-salario="{{ $dato['salario'] }}"
                         data-estado="{{ $dato['estado'] }}">
                         Editar
                     </button>
-                    
+
                     <button class="btn btn-pdf" type="submit">PDF</button>
 
                     <!-- Botón eliminar -->
@@ -120,23 +121,28 @@
             @csrf
 
             <div class="campo-form">
-                <label>Nombre:</label>
-                <input type="text" name="nombre" required>
+                <label>Persona:</label>
+                <select name="id_persona" required>
+                    <option value="">-- Seleccione una persona --</option>
+                    @foreach ($personas as $persona)
+                        <option value="{{ $persona->id }}">{{ $persona->nombre }} {{ $persona->apellido }} ({{ $persona->cedula }})</option>
+                    @endforeach
+                </select>
             </div>
 
             <div class="campo-form">
-                <label>Apellido:</label>
-                <input type="text" name="apellido" required>
+                <label>Cargo:</label>
+                <input type="text" name="cargo" required>
             </div>
 
             <div class="campo-form">
-                <label>Sueldo:</label>
-                <input type="number" name="sueldo" step="0.01" required>
+                <label>Salario:</label>
+                <input type="text" name="salario" required>
             </div>
 
             <div class="campo-form">
-                <label>Fecha de Contrato:</label>
-                <input type="date" name="fecha_contrato" required>
+                <label>Estado:</label>
+                <input type="number" name="estado" value="1" required>
             </div>
 
             <div class="modal-footer">
@@ -161,23 +167,18 @@
             <input type="hidden" name="id" id="id">
 
             <div class="campo-form">
-                <label>Nombre:</label>
-                <input type="text" name="nombre" id="edit_nombre" required>
+                <label>Cargo:</label>
+                <input type="text" name="cargo" id="edit_cargo" required>
             </div>
 
             <div class="campo-form">
-                <label>Apellido:</label>
-                <input type="text" name="apellido" id="edit_apellido" required>
+                <label>Salario:</label>
+                <input type="text" name="salario" id="edit_salario" required>
             </div>
 
             <div class="campo-form">
-                <label>Sueldo:</label>
-                <input type="number" name="sueldo" id="edit_sueldo" step="0.01" required>
-            </div>
-
-            <div class="campo-form">
-                <label>Fecha de Contrato:</label>
-                <input type="date" name="fecha_contrato" id="edit_fecha" required>
+                <label>Estado:</label>
+                <input type="number" name="estado" id="edit_estado" required>
             </div>
 
             <div class="modal-footer">
@@ -232,19 +233,17 @@
 
     /* === Modal Editar === */
     const modalEditar = document.getElementById('modalEditar');
-    const editNombre = document.getElementById('edit_nombre');
-    const editApellido = document.getElementById('edit_apellido');
-    const editSueldo = document.getElementById('edit_sueldo');
-    const editFecha = document.getElementById('edit_fecha');
+    const editCargo = document.getElementById('edit_cargo');
+    const editSalario = document.getElementById('edit_salario');
+    const editEstado = document.getElementById('edit_estado');
     const editId = document.getElementById('id');
 
     document.querySelectorAll('.btn-abrir-editar').forEach(boton => {
         boton.addEventListener('click', () => {
             editId.value = boton.getAttribute('data-id');
-            editNombre.value = boton.getAttribute('data-nombre');
-            editApellido.value = boton.getAttribute('data-apellido');
-            editSueldo.value = boton.getAttribute('data-sueldo');
-            editFecha.value = boton.getAttribute('data-fecha').split(' ')[0]; // formatear fecha si incluye hora
+            editCargo.value = boton.getAttribute('data-cargo');
+            editSalario.value = boton.getAttribute('data-salario');
+            editEstado.value = boton.getAttribute('data-estado');
 
             modalEditar.style.display = 'flex';
         });

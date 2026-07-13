@@ -100,12 +100,14 @@ class PersonaController extends Controller
 
         'cedula.required' => 'La cédula es obligatoria.',
         'cedula.string' => 'La cédula debe ser texto.',
-        'cedula.max' => 'La cédula no puede exceder 255 caracteres.',
+        'cedula.min' => 'La cédula debe tener al menos 6 caracteres.',
+        'cedula.max' => 'La cédula no puede exceder 8 caracteres.',
         'cedula.unique' => 'Esta cédula ya está registrada.',
 
         'celular.required' => 'El celular es obligatorio.',
         'celular.string' => 'El celular debe ser texto.',
-        'celular.max' => 'El celular no puede exceder 255 caracteres.',
+        'celular.min' => 'El celular debe tener al menos 8 caracteres.',
+        'celular.max' => 'El celular no puede exceder 8 caracteres.',
 
         'correo.required' => 'El correo es obligatorio.',
         'correo.email' => 'Debe ingresar un correo válido.',

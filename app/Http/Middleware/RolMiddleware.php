@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\DetalleRol;
+use App\Models\Permiso;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -17,10 +18,10 @@ class RolMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $user = Cache::get('persona');     
+        $user = Cache::get('persona');
         if(!$user){
             return redirect()->route('login');
-        }   
+        }
 
         // Asegurarnos de que tenemos un objeto User válido
         if (!$user instanceof \App\Models\User) {
@@ -29,12 +30,13 @@ class RolMiddleware
         }
 
         $permisos = DetalleRol::where('id_rol', $user->id_rol)->select('id_permiso')->get();
+        $idPermisoRol = Permiso::where('nombre', 'rol')->value('id');
 
-        foreach ($permisos as $permiso) {        
-            if($permiso->id_permiso == 1){  // Cambiado de "1" a 1 para consistencia con tipos
+        foreach ($permisos as $permiso) {
+            if($permiso->id_permiso == $idPermisoRol){
                 return $next($request);
             }
-        }         
-        return back()->with('autorizacion','No tiene permiso para ingresar');             
+        }
+        return back()->with('autorizacion','No tiene permiso para ingresar');
     }
 }

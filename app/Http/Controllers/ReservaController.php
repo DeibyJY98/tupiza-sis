@@ -11,6 +11,7 @@ use App\Services\ReservaService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Carbon\Carbon;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class ReservaController extends Controller
 {
@@ -170,6 +171,14 @@ class ReservaController extends Controller
       } catch (\Exception $e) {
           return redirect()->route('mostrar.reserva')->with('error', 'Error al eliminar la reserva: ' . $e->getMessage());
       }
+  }
+
+  public function pdf(){
+    $datos = Reserva::get();
+    $datos = $datos->map->toShow();
+
+    $pdf = Pdf::loadView('reserva.pdf', compact('datos'));
+    return $pdf->stream('reservas.pdf');
   }
 
   public function getFechasOcupadas($habitacion_id){

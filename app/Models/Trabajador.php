@@ -12,6 +12,7 @@ class Trabajador extends Model
     protected $fillable = [
         'id',
         'cargo',
+        'salario',
         'estado',
         'id_persona',
     ];
@@ -24,6 +25,7 @@ class Trabajador extends Model
         return[
             'id'        => $this->id,
             'cargo'     => $this->cargo,
+            'salario'   => $this->salario,
             'estado'    => $this->estado,
             //'nombre'    => $this->persona->nombre ?? null,
             //'apellido'  => $this->persona->apellido ?? null

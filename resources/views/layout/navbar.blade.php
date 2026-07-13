@@ -36,6 +36,8 @@
         <li><a href="{{ route('mostrar.cliente')}}"><i>🧍</i> Clientes </a></li>
         <li><a href="{{ route('mostrar.trabajador')}}"><i>🧑‍💼</i> Trabajadores </a></li>
         <li><a href="{{ route('mostrar.habitacion') }}"><i>🏨</i> Habitaciones </a></li>
+        <li><a href="{{ route('mostrar.tipo_habitacion') }}"><i>🛏️</i> Tipos de Habitación </a></li>
+        <li><a href="{{ route('mostrar.caracteristica') }}"><i>🏷️</i> Características </a></li>
         <li><a href="{{ route('mostrar.reserva') }}"><i>📅</i> Reservas </a></li>
         <li><a href="{{ route('mostrar.servicio_extra') }}"><i>🛎️</i> Servicios Extras </a></li>
         <li><a href="{{ route('mostrar.pago') }}"><i>💳</i> Pagos </a></li>

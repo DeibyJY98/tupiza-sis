@@ -17,7 +17,7 @@
   <div class="header-section">
     <h1>Gestión de Pagos</h1>
     <div class="right-buttons">
-      <button class="btn yellow">📄 PDF</button>
+      <a href="{{ route('pago.pdf') }}" target="_blank" class="btn yellow">📄 PDF</a>
       <button class="btn green" id="abrirModalCrear">Crear Pago</button>
     </div>
   </div>
