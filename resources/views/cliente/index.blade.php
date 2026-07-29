@@ -47,6 +47,7 @@
           <th><span>ID</span></th>
           <th><span>Nombre</span></th>         
           <th><span>Nit</span></th>         
+          <th><span>Razon Social</span></th>         
           <th><span>Estado</span></th>         
           <th><span>Acciones</span></th>
         </tr>
@@ -59,6 +60,7 @@
               {{ isset($dato['persona']['nombre']) ? $dato['persona']['nombre'].' '.$dato['persona']['apellido'] : '' }}
             </td>
             <td>{{ $dato['nit'] }}</td>
+            <td>{{ $dato['razon_social'] }}</td>
             <td>
               @if ($dato['estado'] == 1)
                 <span style="color: #22c55e; border: 2px solid #22c55e; background-color: transparent; padding: 5%;">

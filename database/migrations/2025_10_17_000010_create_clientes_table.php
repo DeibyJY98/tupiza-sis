@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('clientes', function (Blueprint $table) {
             $table->id();
             $table->integer('nit');
+            $table->string('razon_social');
             $table->integer('estado');
             $table->foreignId('id_persona')->constrained('personas')->onDelete('cascade');
             $table->timestamps();

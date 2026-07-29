@@ -85,9 +85,9 @@ Route::prefix('/persona')->group(function(){
 //** PAGINA CLIENTE **//
 Route::prefix('/cliente')->group(function(){
     Route::get("/",[ClienteController::class,'index'])->name('mostrar.cliente');
-    //Route::post("/",[PersonaController::class,'store'])->name('crear.persona');
-    //Route::post("/editar",[PersonaController::class,'update'])->name('editar.persona');
-    //Route::post("/eliminar",[PersonaController::class,'destroy'])->name('eliminar.persona');
+    Route::post("/",[ClienteController::class,'store'])->name('crear.cliente');
+    Route::post("/editar",[ClienteController::class,'update'])->name('editar.cliente');
+    Route::post("/eliminar",[ClienteController::class,'destroy'])->name('eliminar.cliente');
 });
 //** PAGINA TRABAJADOR **//
 Route::prefix('/trabajador')->group(function(){

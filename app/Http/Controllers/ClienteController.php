@@ -17,7 +17,29 @@ class ClienteController extends Controller
 
     public function store(Request $request)
     {
-        //
+        try{
+            $request->validate([
+                'id'            => 'required|numeric',
+                'nit'           => 'required|numeric',
+                'razon_social'  => 'required|string|max:255',
+                'estado'        => 'required|numeric',
+                'id_persona'    => 'required|numeric'
+            ], $this->rules);
+            
+            $nuevo = [
+
+            ];
+            
+            Cliente::create($nuevo);
+        }
+        catch(ValidationException $e) {
+            $mensajes = collect($e->errors())->flatten()->join(' ');
+            return back()->with('error', $mensajes);
+        }
+        catch (\Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
+        return redirect()->route('mostrar.cliente');
     }
 
     public function update(Request $request, Cliente $cliente)

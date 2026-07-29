@@ -12,6 +12,7 @@ class Cliente extends Model
     protected $fillable = [
         'id',
         'nit',
+        'razon_social',
         'estado',
         'id_persona',
     ];
@@ -22,9 +23,10 @@ class Cliente extends Model
 
     public function toShow(){
         return[
-            'id'        => $this->id,
-            'nit'       => $this->nit,
-            'estado'    => $this->estado,
+            'id'            => $this->id,
+            'nit'           => $this->nit,
+            'razon_social'  => $this->razon_social,
+            'estado'        => $this->estado,
             //'nombre'    => $this->persona->nombre ?? null,
             //'apellido'  => $this->persona->apellido ?? null,
 

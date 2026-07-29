@@ -22,7 +22,7 @@
         <h1>Gestión de Trabajadores</h1>
         <div class="right-buttons">
             <button class="btn yellow">📄 PDF</button>
-            <button class="btn green" id="abrirModalCrear">Crear Cliente</button>
+            <button class="btn green" id="abrirModalCrear">Crear Trabajador</button>
         </div>
     </div>
     <!--SECCION DE FILTROS -->

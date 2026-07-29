@@ -8,7 +8,7 @@
       <h1>Gestión de Servicios Extras</h1>
       <div class="right-buttons">
         <button class="btn yellow">📄 PDF</button>
-        <button class="btn green" id="abrirModalCrear">Crear Pago</button>
+        <button class="btn green" id="abrirModalCrear">Crear Servicio</button>
       </div>
     </div>
     <!--SECCION DE FILTROS -->
