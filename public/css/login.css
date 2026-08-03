@@ -131,3 +131,38 @@ body {
 .btn:hover {
   background-color: #0056b3;
 }
+
+@media (max-width: 768px) {
+  body {
+    height: auto;
+    min-height: 100vh;
+    padding: 20px 12px;
+  }
+
+  .login-container {
+    flex-direction: column;
+    width: 100%;
+    max-width: 420px;
+    height: auto;
+  }
+
+  .login-welcome {
+    padding: 24px 16px;
+  }
+
+  .welcome-content {
+    padding: 10px;
+  }
+
+  .welcome-content h1 {
+    font-size: 1.5rem;
+  }
+
+  .welcome-content img {
+    max-width: 200px;
+  }
+
+  .login-form {
+    padding: 28px 24px;
+  }
+}

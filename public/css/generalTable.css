@@ -207,3 +207,56 @@ tr:nth-child(even) {
     background: #fbbf24;
     color: #1e293b;
 }
+/* Contenedor con scroll propio para la tabla: en pantallas angostas solo
+   scrollea horizontalmente la tabla, no la página completa. */
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* ===== Mobile (<=768px) ===== */
+@media (max-width: 768px) {
+    .container {
+        padding: 0;
+    }
+    .header-section {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+    .right-buttons {
+        margin-left: 0;
+        float: none;
+        flex-wrap: wrap;
+    }
+    .right-buttons .btn {
+        flex: 1 1 auto;
+        justify-content: center;
+    }
+    .filters {
+        gap: 10px;
+        padding: 12px;
+    }
+    .input-group,
+    .input-group.full {
+        width: 100%;
+    }
+    .filters > .btn {
+        flex: 1 1 auto;
+        justify-content: center;
+    }
+    table {
+        font-size: 13px;
+    }
+    th, td {
+        padding: 8px;
+        white-space: nowrap;
+    }
+    .acciones {
+        flex-wrap: wrap;
+    }
+    .pagination {
+        justify-content: center;
+        text-align: center;
+    }
+}

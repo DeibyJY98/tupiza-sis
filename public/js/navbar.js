@@ -109,7 +109,10 @@ function renderizarControlesPaginacion(totalRegistros, totalPaginas) {
         contenedor = document.createElement('div');
         contenedor.id = 'paginacionControles';
         contenedor.className = 'pagination';
-        tabla.insertAdjacentElement('afterend', contenedor);
+        // Se ancla después del contenedor con scroll (si existe) y no de la tabla en sí,
+        // para que la paginación quede a ancho completo y no se recorte junto con la tabla.
+        const referencia = tabla.closest('.table-responsive') || tabla;
+        referencia.insertAdjacentElement('afterend', contenedor);
     }
 
     if (totalRegistros === 0) {
@@ -135,12 +138,53 @@ function renderizarControlesPaginacion(totalRegistros, totalPaginas) {
     `;
 }
 
+// Envuelve la tabla principal en un contenedor con scroll horizontal propio,
+// para que en mobile solo la tabla scrollee y no toda la página. Se hace por JS
+// (no en cada .blade.php) para no tener que tocar las 12 vistas por separado.
+function envolverTablaResponsive() {
+    const tabla = document.querySelector('.container table');
+    if (!tabla || tabla.parentElement.classList.contains('table-responsive')) {
+        return;
+    }
+
+    const envoltorio = document.createElement('div');
+    envoltorio.className = 'table-responsive';
+    tabla.parentElement.insertBefore(envoltorio, tabla);
+    envoltorio.appendChild(tabla);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+    envolverTablaResponsive();
+
     document.querySelectorAll('table tbody tr[data-filtro-texto]').forEach(fila => {
         fila.dataset.filtroOculto = 'false';
     });
 
     renderizarPagina();
+});
+
+// === Menú lateral deslizante (hamburguesa) para mobile ===
+document.addEventListener('DOMContentLoaded', () => {
+    const boton = document.getElementById('menuToggle');
+    const sidebar = document.querySelector('.sidebar');
+    const backdrop = document.getElementById('sidebarBackdrop');
+
+    if (!boton || !sidebar || !backdrop) {
+        return;
+    }
+
+    const cerrarMenu = () => {
+        sidebar.classList.remove('abierta');
+        backdrop.classList.remove('visible');
+    };
+
+    boton.addEventListener('click', (evento) => {
+        sidebar.classList.toggle('abierta');
+        backdrop.classList.toggle('visible');
+        evento.stopPropagation();
+    });
+
+    backdrop.addEventListener('click', cerrarMenu);
 });
 
 // === Panel de notificaciones (campanita del top-bar) ===

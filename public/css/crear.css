@@ -4,8 +4,25 @@
         padding: 25px;
         border-radius: 10px;
         width: 400px;
+        max-width: 92vw;
         margin: 40px auto;
         box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    @media (max-width: 480px) {
+        .form-container {
+            margin: 20px auto;
+            padding: 18px;
+        }
+        .form-actions {
+            flex-direction: column;
+            gap: 10px;
+        }
+        .form-actions .btn-guardar,
+        .form-actions .btn-cancelar {
+            width: 100%;
+            text-align: center;
+        }
     }
 
     .form-container h2 {

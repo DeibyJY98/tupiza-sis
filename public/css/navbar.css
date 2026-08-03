@@ -136,8 +136,9 @@ body {
 .notifications-panel {
   position: absolute;
   top: 30px;
-  left: -12px;
+  right: -12px;
   width: 320px;
+  max-width: calc(100vw - 40px);
   max-height: 360px;
   overflow-y: auto;
   background: #1f2229;
@@ -215,6 +216,20 @@ body {
   display: flex;
 }
 
+.menu-toggle {
+  display: none;
+  background: none;
+  border: none;
+  color: #fff;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.sidebar-backdrop {
+  display: none;
+}
+
 /* Charts */
 .dashboard {
   display: grid;
@@ -231,4 +246,67 @@ body {
 .chart-card h3 {
   margin-bottom: 15px;
   text-align: center;
+}
+
+/* ===== Mobile (<=768px): la sidebar pasa a ser un panel deslizante ===== */
+@media (max-width: 768px) {
+  body {
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 250px;
+    max-width: 80vw;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease-in-out;
+    z-index: 2100;
+    overflow-y: auto;
+  }
+
+  .sidebar.abierta {
+    transform: translateX(0);
+  }
+
+  .sidebar-backdrop.visible {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 2000;
+  }
+
+  .main-content {
+    width: 100%;
+    padding: 14px;
+  }
+
+  .menu-toggle {
+    display: inline-flex;
+    margin-right: auto;
+  }
+
+  .top-bar {
+    margin-bottom: 14px;
+  }
+
+  .notifications-panel {
+    width: min(320px, calc(100vw - 32px));
+  }
+
+  .user-header p {
+    display: none;
+  }
+
+  .user-header a {
+    gap: 0;
+  }
+
+  .dashboard {
+    grid-template-columns: 1fr;
+  }
 }

@@ -55,8 +55,11 @@
     </nav>
   </div>
 
+  <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
   <div class="main-content">
     <header class="top-bar">
+      <button type="button" class="menu-toggle" id="menuToggle" aria-label="Abrir menú">☰</button>
       <div class="notifications" id="notificacionesToggle">
         🔔
         @if ($notificacionesNoLeidas > 0)
