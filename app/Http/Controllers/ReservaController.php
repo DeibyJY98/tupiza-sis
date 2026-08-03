@@ -8,6 +8,8 @@ use App\Models\Trabajador;
 use App\Models\Cliente;
 use App\Models\Habitacion;
 use App\Models\HabitacionReserva;
+use App\Models\HabitacionServicioExtra;
+use App\Models\ServicioExtra;
 use App\Services\ReservaService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -18,14 +20,15 @@ class ReservaController extends Controller
   use ExportaPdf;
 
   public function index(){
-    $datos = Reserva::get();  
+    $datos = Reserva::get();
     $habitaciones = Habitacion::get();
     $trabajadores = Trabajador::get();
     $clientes = Cliente::get();
-  
+    $serviciosExtras = ServicioExtra::where('estado', 1)->get();
+
     $datos = $datos->map->toShow();
-  
-    return view("reserva.index",compact('datos','clientes','trabajadores','habitaciones'));
+
+    return view("reserva.index",compact('datos','clientes','trabajadores','habitaciones','serviciosExtras'));
   }
 
   protected $reservaService;
@@ -45,6 +48,8 @@ class ReservaController extends Controller
         'id_trabajador' => 'required|exists:trabajadors,id',
         'id_cliente' => 'required|exists:clientes,id',
         'id_habitacion' => 'required|exists:habitacions,id',
+        'servicios_extra' => 'sometimes|array',
+        'servicios_extra.*' => 'exists:servicio_extras,id',
       ], $this->rules);
 
       // Validar disponibilidad de la habitación
@@ -67,11 +72,18 @@ class ReservaController extends Controller
       // si se envía una habitación, crear la relación en la tabla pivot
       if ($request->filled('id_habitacion')) {
         try {
-          HabitacionReserva::create([
+          $habitacionReserva = HabitacionReserva::create([
             'monto' => $nuevo->costo_total ?? 0,
             'id_reserva' => $nuevo->id,
             'id_habitacion' => $request->input('id_habitacion'),
         ]);
+
+          foreach ($request->input('servicios_extra', []) as $idServicioExtra) {
+            HabitacionServicioExtra::create([
+              'id_habitacion_reserva' => $habitacionReserva->id,
+              'id_servicio_extra' => $idServicioExtra,
+            ]);
+          }
         }
         catch (\Exception $e) {
           // no detener el flujo por un error en el pivot; loguear y continuar
@@ -101,8 +113,10 @@ class ReservaController extends Controller
               'estado' => 'sometimes|numeric',
               'id_trabajador' => 'sometimes|exists:trabajadors,id',
               'id_cliente' => 'sometimes|exists:clientes,id',
-              'id_habitacion' => 'sometimes|exists:habitacions,id',  
-          ], $this->rules);  
+              'id_habitacion' => 'sometimes|exists:habitacions,id',
+              'servicios_extra' => 'sometimes|array',
+              'servicios_extra.*' => 'exists:servicio_extras,id',
+          ], $this->rules);
 
           $dato = Reserva::where('id', $request->id)->first();
           
@@ -127,11 +141,18 @@ class ReservaController extends Controller
               // sincronizar habitación: eliminar relaciones previas y crear nueva si se envía id_habitacion
               if ($request->has('id_habitacion')) {
                   HabitacionReserva::where('id_reserva', $dato->id)->delete();
-                  HabitacionReserva::create([
+                  $habitacionReserva = HabitacionReserva::create([
                       'monto' => $modificar['costo_total'] ?? $dato->costo_total ?? 0,
                       'id_reserva' => $dato->id,
                       'id_habitacion' => $request->input('id_habitacion'),
                   ]);
+
+                  foreach ($request->input('servicios_extra', []) as $idServicioExtra) {
+                      HabitacionServicioExtra::create([
+                          'id_habitacion_reserva' => $habitacionReserva->id,
+                          'id_servicio_extra' => $idServicioExtra,
+                      ]);
+                  }
               }
 
               return response()->json([
@@ -210,7 +231,7 @@ class ReservaController extends Controller
 
   public function exportarPdf(Request $request)
   {
-    $consulta = Reserva::with(['cliente.persona', 'trabajador.persona', 'habitaciones']);
+    $consulta = Reserva::with(['cliente.persona', 'trabajador.persona', 'habitaciones', 'habitacionReservas.serviciosExtras']);
 
     if ($request->filled('ids')) {
       $consulta->whereIn('id', $request->input('ids'));
@@ -224,12 +245,13 @@ class ReservaController extends Controller
       trim(optional(optional($reserva->trabajador)->persona)->nombre . ' ' . optional(optional($reserva->trabajador)->persona)->apellido),
       trim(optional(optional($reserva->cliente)->persona)->nombre . ' ' . optional(optional($reserva->cliente)->persona)->apellido),
       $reserva->habitaciones->pluck('numero_habitacion')->join(', '),
+      $reserva->habitacionReservas->flatMap->serviciosExtras->pluck('nombre')->join(', '),
       $reserva->estado == 1 ? 'Completado' : 'Cancelado',
     ])->all();
 
     return $this->generarPdf(
       'Reporte de Reservas',
-      ['ID', 'Fecha Inicio', 'Fecha Fin', 'Costo Total', 'Trabajador', 'Cliente', 'Habitación(es)', 'Estado'],
+      ['ID', 'Fecha Inicio', 'Fecha Fin', 'Costo Total', 'Trabajador', 'Cliente', 'Habitación(es)', 'Servicios Extra', 'Estado'],
       $filas,
       'reservas.pdf'
     );

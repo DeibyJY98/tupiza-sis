@@ -104,7 +104,8 @@
                 data-estado="{{ $dato['estado'] }}"
                 data-trabajador-id="{{ $dato['trabajador']['id'] ?? '' }}"
                 data-cliente-id="{{ $dato['cliente']['id'] ?? '' }}"
-                data-habitacion-id="{{ $dato['habitaciones'][0]['id'] ?? '' }}">
+                data-habitacion-id="{{ $dato['habitaciones'][0]['id'] ?? '' }}"
+                data-servicios-extra="{{ collect($dato['servicios_extra'])->pluck('id')->implode(',') }}">
                 Editar
             </button>
 
@@ -196,6 +197,20 @@
         </select>
       </div>
 
+      <div class="campo-form">
+        <label>Servicios Extras:</label>
+        <div class="checkbox-group" id="serviciosExtraCrear">
+          @forelse ($serviciosExtras as $servicio)
+            <label class="checkbox-item">
+              <input type="checkbox" name="servicios_extra[]" value="{{ $servicio->id }}" data-precio="{{ $servicio->precio }}" class="servicio-extra-check">
+              {{ $servicio->nombre }} (+{{ $servicio->precio }})
+            </label>
+          @empty
+            <span class="checkbox-empty">No hay servicios extras activos.</span>
+          @endforelse
+        </div>
+      </div>
+
       <div class="modal-footer">
         <button type="button" class="btn-cancelarM" id="cancelarModal">Cancelar</button>
         <button type="submit" class="btn-guardar">Guardar</button>
@@ -279,6 +294,20 @@
             <option value="{{ $cliente->id }}">{{ optional($cliente->persona)->nombre }} {{ optional($cliente->persona)->apellido }}</option>
           @endforeach
         </select>
+      </div>
+
+      <div class="campo-form">
+        <label>Servicios Extras:</label>
+        <div class="checkbox-group" id="serviciosExtraEditar">
+          @forelse ($serviciosExtras as $servicio)
+            <label class="checkbox-item">
+              <input type="checkbox" name="servicios_extra[]" value="{{ $servicio->id }}" data-precio="{{ $servicio->precio }}" class="servicio-extra-check-editar">
+              {{ $servicio->nombre }} (+{{ $servicio->precio }})
+            </label>
+          @empty
+            <span class="checkbox-empty">No hay servicios extras activos.</span>
+          @endforelse
+        </div>
       </div>
 
       <div class="modal-footer">
@@ -367,15 +396,17 @@
     }
   }
 
-  // Función para calcular el costo total
+  // Función para calcular el costo total (precio de la habitación por noche + servicios extras elegidos)
   function calcularCostoTotal() {
     if (fechaInicio.value && fechaFin.value && selectHabitacion.value) {
       const inicio = new Date(fechaInicio.value);
       const fin = new Date(fechaFin.value);
       const dias = Math.ceil((fin - inicio) / (1000 * 60 * 60 * 24)) + 1;
       const precioBase = parseFloat(selectHabitacion.selectedOptions[0].dataset.precio);
-          
-      costoTotal.value = (dias * precioBase).toFixed(2);
+      const precioServiciosExtra = Array.from(document.querySelectorAll('.servicio-extra-check:checked'))
+        .reduce((total, checkbox) => total + parseFloat(checkbox.dataset.precio || 0), 0);
+
+      costoTotal.value = (dias * precioBase + precioServiciosExtra).toFixed(2);
     }
   }
 
@@ -386,10 +417,14 @@
     fechaFin.min = this.value; // La fecha fin no puede ser anterior a la fecha inicio
     calcularCostoTotal();
   });
-  
+
   fechaFin.addEventListener('change', function() {
     validarFecha(this);
     calcularCostoTotal();
+  });
+
+  document.querySelectorAll('.servicio-extra-check').forEach(checkbox => {
+    checkbox.addEventListener('change', calcularCostoTotal);
   });
 
   // Validación del formulario antes de enviar
@@ -459,6 +494,13 @@
           editTrabajador.value = boton.getAttribute('data-trabajador-id');
           editCliente.value = boton.getAttribute('data-cliente-id');
           editHabitacion.value = boton.getAttribute('data-habitacion-id');
+
+          const idsServiciosExtra = (boton.getAttribute('data-servicios-extra') || '')
+            .split(',')
+            .filter(Boolean);
+          document.querySelectorAll('.servicio-extra-check-editar').forEach(checkbox => {
+            checkbox.checked = idsServiciosExtra.includes(checkbox.value);
+          });
 
           modalEditar.style.display = 'flex';
       });

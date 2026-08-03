@@ -26,7 +26,7 @@ Route::get("/logout",[AuthController::class,'logout'])->name('logout');
 //** NOTIFICACIONES **//
 Route::post("/notificaciones/marcar-leidas", [NotificacionController::class, 'marcarLeidas'])->name('notificaciones.marcar-leidas');
 //** PAGINA ROL **//
-Route::prefix('/rol')->middleware('rolMiddleware')->group(function(){
+Route::prefix('/rol')->middleware('permiso:rol')->group(function(){
     Route::get("/",[RolController::class,'index'])->name('mostrar.rol');
     //crear nuevo rol
     Route::get("/crear",[RolController::class,'indexStore'])->name('index.crear.rol');
@@ -53,7 +53,7 @@ Route::prefix('/usuario')->middleware('userMiddleware')->group(function(){
     Route::post("/pdf",[UserController::class,'exportarPdf'])->name('pdf.usuario');
 });
 //** PAGINA PERMISOS **//
-Route::prefix('/permiso')->middleware('permisoMiddleware')->group(function(){
+Route::prefix('/permiso')->middleware('permiso:permiso')->group(function(){
     Route::get("/",[PermisoController::class,'index'])->name('mostrar.permiso');
     Route::post("/",[PermisoController::class,'store'])->name('crear.permiso');
     Route::post("/editar",[PermisoController::class,'update'])->name('editar.permiso');

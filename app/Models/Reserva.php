@@ -33,7 +33,12 @@ class Reserva extends Model
                     ->withPivot('monto')
                     ->withTimestamps();
     }
-    
+
+    public function habitacionReservas()
+    {
+        return $this->hasMany(HabitacionReserva::class, 'id_reserva');
+    }
+
     public function pagos()
     {
         return $this->hasMany(Pago::class, 'id_reserva');
@@ -71,6 +76,17 @@ class Reserva extends Model
                     'monto'             => $habitacion->pivot->monto,
                 ];
             }),
+
+            // Servicios extras asociados a la(s) habitación(es) de esta reserva
+            'servicios_extra' => $this->habitacionReservas->flatMap(function (HabitacionReserva $habitacionReserva) {
+                return $habitacionReserva->serviciosExtras->map(function (ServicioExtra $servicioExtra) {
+                    return [
+                        'id' => $servicioExtra->id,
+                        'nombre' => $servicioExtra->nombre,
+                        'precio' => $servicioExtra->precio,
+                    ];
+                });
+            })->values(),
 
             // Pagos relacionados
             'pagos' => $this->pagos->map(function ($pago) {

@@ -52,3 +52,44 @@ it('bloquea el acceso cuando el rol del usuario NO tiene el permiso del módulo'
     $response->assertSessionHas('autorizacion');
     $response->assertStatus(302);
 });
+
+// Regresión: /rol y /permiso usaban RolMiddleware/PermisoMiddleware con ids de permiso
+// hardcodeados (1 y 2 respectivamente). En el seeder real esos ids correspondían al
+// permiso contrario ("permiso" y "rol" cruzados), así que un usuario con el permiso
+// "rol" no podía entrar a /rol, y viceversa. Ahora ambas rutas usan permiso:{modulo}
+// como el resto de módulos, así que el nombre manda y no el id numérico.
+it('el permiso "rol" (aunque no tenga el id 1) da acceso a /rol y no a /permiso', function () {
+    // Se crean en este orden para que "rol" termine con id=1, justo el escenario que
+    // rompía con el middleware viejo (que exigía id_permiso == 1 para entrar a /rol).
+    $permisoRol = Permiso::create(['nombre' => 'rol']);
+    Permiso::create(['nombre' => 'permiso']);
+
+    $rol = crearRol('solo_rol');
+    DetalleRol::create(['id_rol' => $rol->id, 'id_permiso' => $permisoRol->id]);
+
+    [$user, $password] = crearUsuarioConRol($rol, 'solo_rol1');
+    $this->post('/login', ['username' => $user->username, 'password' => $password]);
+
+    $this->get('/rol')->assertOk();
+
+    $response = $this->get('/permiso');
+    $response->assertSessionHas('autorizacion');
+    $response->assertStatus(302);
+});
+
+it('el permiso "permiso" (aunque no tenga el id 2) da acceso a /permiso y no a /rol', function () {
+    Permiso::create(['nombre' => 'rol']);
+    $permisoPermiso = Permiso::create(['nombre' => 'permiso']);
+
+    $rol = crearRol('solo_permiso');
+    DetalleRol::create(['id_rol' => $rol->id, 'id_permiso' => $permisoPermiso->id]);
+
+    [$user, $password] = crearUsuarioConRol($rol, 'solo_permiso1');
+    $this->post('/login', ['username' => $user->username, 'password' => $password]);
+
+    $this->get('/permiso')->assertOk();
+
+    $response = $this->get('/rol');
+    $response->assertSessionHas('autorizacion');
+    $response->assertStatus(302);
+});
