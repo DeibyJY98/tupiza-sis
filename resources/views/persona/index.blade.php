@@ -17,25 +17,17 @@
   <div class="header-section">
     <h1>Gestión de Personas</h1>    
     <div class="right-buttons">
-      <button class="btn yellow">📄 PDF</button>
+      <button type="button" class="btn yellow" id="btnExportarPdf" data-ruta-pdf="{{ route('pdf.persona') }}">📄 PDF</button>
       <button class="btn green" id="abrirModalCrear">Crear Persona</button>
     </div>
   </div>
   <!--SECCION DE FILTROS -->
   <div class="filters">
-    <div class="input-group">
-      <input type="date" id="fecha_inicio" class="input-field" placeholder=" " required>
-      <label for="fecha_inicio" class="floating-label">Fecha Inicio</label>
-    </div>
-    <div class="input-group">
-      <input type="date" id="fecha_fin" class="input-field" placeholder=" " required>
-      <label for="fecha_fin" class="floating-label">Fecha Final</label>
-    </div>
     <div class="input-group" style="pading:5%;">
       <select id="estado" style="color: #4f37d2; border: 2px solid #4f37d2; background-color: transparent;">
         <option value="">Seleccionar Estado</option>
-        <option value="completado">Completado</option>
-        <option value="cancelado">Cancelado</option>
+        <option value="1">Activo</option>
+        <option value="0">Inactivo</option>
       </select>
     </div>
     <div class="input-group full">
@@ -61,7 +53,9 @@
     </thead>
     <tbody>
       @foreach ($datos as $dato)
-      <tr>
+      <tr data-id="{{ $dato['id'] }}"
+          data-filtro-texto="{{ strtolower($dato['nombre'].' '.$dato['apellido'].' '.$dato['cedula'].' '.$dato['celular'].' '.$dato['correo']) }}"
+          data-filtro-estado="{{ $dato['estado'] }}">
         <td>{{ $dato['id'] }}</td>
         <td>{{ $dato['nombre'] }}</td>
         <td>{{ $dato['apellido'] }}</td>
@@ -91,8 +85,8 @@
               data-estado="{{ $dato['estado'] }}">
               Editar
           </button>
-          <!-- Botón eliminar -->
-          <button class="btn btn-pdf" type="submit">PDF</button>
+          <!-- Botón PDF -->
+          <button type="button" class="btn btn-pdf" data-ruta-pdf="{{ route('pdf.persona') }}" data-id="{{ $dato['id'] }}">PDF</button>
           <!-- Botón eliminar -->
           <button class="btn btn-cancelar btn-abrir-eliminar"
               data-id-eliminar="{{ $dato['id'] }}">

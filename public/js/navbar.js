@@ -1,104 +1,220 @@
-// Gráfico de categorías con habitaciones
-const ctx1 = document.getElementById("chartHabitaciones");
-new Chart(ctx1, {
-  type: "pie",
-  data: {
-    labels: ["Simple", "Doble"],
-    datasets: [
-      {
-        data: [25, 75],
-        backgroundColor: ["#3b82f6", "#ef4444"],
-      },
-    ],
-  },
-  options: {
-    plugins: {
-      legend: {
-        position: "right",
-        labels: { color: "#fff" },
-      },
-    },
-  },
-});
-
-// Gráfico de personas registradas
-const ctx2 = document.getElementById("chartPersonas");
-new Chart(ctx2, {
-  type: "pie",
-  data: {
-    labels: ["Clientes", "Empleados", "Administradores"],
-    datasets: [
-      {
-        data: [60, 25, 15],
-        backgroundColor: ["#3b82f6", "#10b981", "#f59e0b"],
-      },
-    ],
-  },
-  options: {
-    plugins: {
-      legend: {
-        position: "right",
-        labels: { color: "#fff" },
-      },
-    },
-  },
-});
-
-
-// Simulación de datos (reemplazar por tu backend)
-const pagos = [
-    { fecha: "2024-09-10", reserva: 5, cliente: "Ana Hernández", cedula: "890123456", monto: 200, estado: "completado" },
-    { fecha: "2024-09-07", reserva: 3, cliente: "Giselle Aguilera Frias", cedula: "7720233", monto: 440, estado: "completado" },
-    { fecha: "2024-09-07", reserva: 3, cliente: "Giselle Aguilera Frias", cedula: "7720233", monto: 440, estado: "cancelado" },
-    { fecha: "2024-08-14", reserva: 2, cliente: "User Prueba", cedula: "99999999", monto: 400, estado: "completado" },
-];
-
-// Cargar tabla
-function cargarTabla(data) {
-    const tbody = document.getElementById("tablaPagos");
-    tbody.innerHTML = "";
-
-    data.forEach(p => {
-        const tr = document.createElement("tr");
-
-        tr.innerHTML = `
-            <td>${p.fecha}</td>
-            <td>${p.reserva}</td>
-            <td>${p.cliente}</td>
-            <td>${p.cedula}</td>
-            <td>${p.monto}</td>
-            <td><span class="label ${p.estado}">${p.estado}</span></td>
-            <td>
-                <button class="btn yellow">PDF</button>
-                <button class="btn red">Cancelar</button>
-            </td>
-        `;
-
-        tbody.appendChild(tr);
-    });
-}
-
-cargarTabla(pagos);
-
-// Botón BUSCAR
+// === Filtro genérico de tablas (búsqueda + estado + rango de fechas) ===
+// Cada vista con filtros marca sus <tr> con data-filtro-texto y data-filtro-estado
+// (y data-filtro-fecha cuando aplica) para que estas dos funciones los filtren en el
+// cliente. Los inputs de filtro son opcionales: si una vista no tiene fecha_inicio,
+// fecha_fin o estado, esa parte del filtro simplemente se ignora.
+// El resultado del filtro se guarda en data-filtro-oculto (en vez de tocar
+// style.display directamente) porque la paginación de más abajo también decide
+// qué filas se muestran; combinar ambas cosas sobre el mismo atributo evitaría
+// que una pisotee a la otra.
 function buscar() {
-    let estado = document.getElementById("estado").value;
-    let texto = document.getElementById("busqueda").value.toLowerCase();
+    const texto = (document.getElementById('busqueda')?.value || '').trim().toLowerCase();
+    const estado = document.getElementById('estado')?.value ?? '';
+    const fechaInicio = document.getElementById('fecha_inicio')?.value ?? '';
+    const fechaFin = document.getElementById('fecha_fin')?.value ?? '';
 
-    let filtrado = pagos.filter(p =>
-        (estado === "" || p.estado === estado) &&
-        (texto === "" || p.cliente.toLowerCase().includes(texto))
-    );
+    document.querySelectorAll('table tbody tr[data-filtro-texto]').forEach(fila => {
+        const filtroTexto = fila.dataset.filtroTexto || '';
+        const filtroEstado = fila.dataset.filtroEstado ?? '';
+        const filtroFecha = fila.dataset.filtroFecha ?? '';
 
-    cargarTabla(filtrado);
+        let visible = true;
+
+        if (texto && !filtroTexto.includes(texto)) {
+            visible = false;
+        }
+        if (visible && estado !== '' && filtroEstado !== estado) {
+            visible = false;
+        }
+        if (visible && fechaInicio && filtroFecha && filtroFecha < fechaInicio) {
+            visible = false;
+        }
+        if (visible && fechaFin && filtroFecha && filtroFecha > fechaFin) {
+            visible = false;
+        }
+
+        fila.dataset.filtroOculto = visible ? 'false' : 'true';
+    });
+
+    paginaActual = 1;
+    renderizarPagina();
 }
 
-// Botón LIMPIAR
 function limpiar() {
-    document.getElementById("estado").value = "";
-    document.getElementById("busqueda").value = "";
-    document.getElementById("fecha_inicio").value = "";
-    document.getElementById("fecha_fin").value = "";
+    const busqueda = document.getElementById('busqueda');
+    const estado = document.getElementById('estado');
+    const fechaInicio = document.getElementById('fecha_inicio');
+    const fechaFin = document.getElementById('fecha_fin');
 
-    cargarTabla(pagos);
+    if (busqueda) busqueda.value = '';
+    if (estado) estado.value = '';
+    if (fechaInicio) fechaInicio.value = '';
+    if (fechaFin) fechaFin.value = '';
+
+    document.querySelectorAll('table tbody tr[data-filtro-texto]').forEach(fila => {
+        fila.dataset.filtroOculto = 'false';
+    });
+
+    paginaActual = 1;
+    renderizarPagina();
 }
+
+// === Paginación genérica de tablas ===
+// Se aplica sobre la misma marca data-filtro-texto que usan los filtros de arriba,
+// así que funciona en las 12 vistas sin tocar ningún archivo .blade.php. Solo pagina
+// las filas que pasaron el filtro (data-filtro-oculto="false"); cambiar de página no
+// afecta al filtro, y aplicar un filtro siempre vuelve a la página 1.
+const FILAS_POR_PAGINA = 10;
+let paginaActual = 1;
+
+function filasDeTabla() {
+    return Array.from(document.querySelectorAll('table tbody tr[data-filtro-texto]'));
+}
+
+function filasFiltradas() {
+    return filasDeTabla().filter(fila => fila.dataset.filtroOculto !== 'true');
+}
+
+function renderizarPagina() {
+    const filas = filasDeTabla();
+    if (filas.length === 0) {
+        return;
+    }
+
+    const filtradas = filasFiltradas();
+    const totalPaginas = Math.max(1, Math.ceil(filtradas.length / FILAS_POR_PAGINA));
+    if (paginaActual > totalPaginas) paginaActual = totalPaginas;
+    if (paginaActual < 1) paginaActual = 1;
+
+    const inicio = (paginaActual - 1) * FILAS_POR_PAGINA;
+    const finPagina = inicio + FILAS_POR_PAGINA;
+
+    filas.forEach(fila => { fila.style.display = 'none'; });
+    filtradas.slice(inicio, finPagina).forEach(fila => { fila.style.display = ''; });
+
+    renderizarControlesPaginacion(filtradas.length, totalPaginas);
+}
+
+function irAPagina(numero) {
+    paginaActual = numero;
+    renderizarPagina();
+}
+
+function renderizarControlesPaginacion(totalRegistros, totalPaginas) {
+    const tabla = document.querySelector('table');
+    if (!tabla) return;
+
+    let contenedor = document.getElementById('paginacionControles');
+    if (!contenedor) {
+        contenedor = document.createElement('div');
+        contenedor.id = 'paginacionControles';
+        contenedor.className = 'pagination';
+        tabla.insertAdjacentElement('afterend', contenedor);
+    }
+
+    if (totalRegistros === 0) {
+        contenedor.innerHTML = '<span class="pagination-info">No hay registros para mostrar.</span>';
+        return;
+    }
+
+    const inicio = (paginaActual - 1) * FILAS_POR_PAGINA + 1;
+    const fin = Math.min(paginaActual * FILAS_POR_PAGINA, totalRegistros);
+
+    let botonesPaginas = '';
+    for (let numero = 1; numero <= totalPaginas; numero++) {
+        botonesPaginas += `<button type="button" class="pagination-page${numero === paginaActual ? ' activo' : ''}" onclick="irAPagina(${numero})">${numero}</button>`;
+    }
+
+    contenedor.innerHTML = `
+        <span class="pagination-info">Mostrando ${inicio}-${fin} de ${totalRegistros} registros</span>
+        <div class="pagination-controles">
+            <button type="button" class="pagination-nav" onclick="irAPagina(${paginaActual - 1})" ${paginaActual === 1 ? 'disabled' : ''}>&laquo; Anterior</button>
+            ${botonesPaginas}
+            <button type="button" class="pagination-nav" onclick="irAPagina(${paginaActual + 1})" ${paginaActual === totalPaginas ? 'disabled' : ''}>Siguiente &raquo;</button>
+        </div>
+    `;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('table tbody tr[data-filtro-texto]').forEach(fila => {
+        fila.dataset.filtroOculto = 'false';
+    });
+
+    renderizarPagina();
+});
+
+// === Panel de notificaciones (campanita del top-bar) ===
+document.addEventListener('DOMContentLoaded', () => {
+    const toggle = document.getElementById('notificacionesToggle');
+    const panel = document.getElementById('notificacionesPanel');
+
+    if (!toggle || !panel) {
+        return;
+    }
+
+    toggle.addEventListener('click', (evento) => {
+        panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+        evento.stopPropagation();
+    });
+
+    panel.addEventListener('click', (evento) => evento.stopPropagation());
+
+    document.addEventListener('click', () => {
+        panel.style.display = 'none';
+    });
+});
+
+// === Exportar reportes en PDF ===
+// El botón superior ("📄 PDF" con id="btnExportarPdf" y data-ruta-pdf) exporta los
+// registros que pasan el filtro actual (data-filtro-oculto="false"): si no hay ningún
+// filtro aplicado eso equivale a "todos", y si hay uno aplicado (buscar()) equivale a
+// "filtrados" -no hace falta ninguna lógica extra para distinguir ambos casos. Se usa
+// el estado del filtro y no style.display porque la paginación oculta filas que sí
+// pasaron el filtro pero no caben en la página actual; esas deben seguir exportándose.
+// Los botones de fila con clase "btn-pdf" y data-ruta-pdf/data-id exportan un único registro.
+function enviarFormularioPdf(ruta, ids) {
+    const token = document.querySelector('meta[name="csrf-token"]')?.content || '';
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = ruta;
+    form.style.display = 'none';
+
+    const csrf = document.createElement('input');
+    csrf.type = 'hidden';
+    csrf.name = '_token';
+    csrf.value = token;
+    form.appendChild(csrf);
+
+    ids.forEach(id => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'ids[]';
+        input.value = id;
+        form.appendChild(input);
+    });
+
+    document.body.appendChild(form);
+    form.submit();
+    form.remove();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const btnExportar = document.getElementById('btnExportarPdf');
+
+    if (btnExportar) {
+        btnExportar.addEventListener('click', () => {
+            const ids = filasFiltradas()
+                .map(fila => fila.dataset.id)
+                .filter(Boolean);
+
+            enviarFormularioPdf(btnExportar.dataset.rutaPdf, ids);
+        });
+    }
+
+    document.querySelectorAll('.btn-pdf[data-ruta-pdf]').forEach(boton => {
+        boton.addEventListener('click', () => {
+            enviarFormularioPdf(boton.dataset.rutaPdf, [boton.dataset.id]);
+        });
+    });
+});

@@ -55,20 +55,9 @@ class ReservaService
     public function liberarHabitacion($idReserva)
     {
         $habitacionReserva = HabitacionReserva::where('id_reserva', $idReserva)->first();
-        if ($habitacionReserva) {
-            $habitacion = $habitacionReserva->habitacion;
-            if ($habitacion) {
-                // Verificar si no hay otras reservas activas para esta habitación
-                $otrasReservasActivas = HabitacionReserva::where('id_habitacion', $habitacion->id)
-                    ->where('id_reserva', '!=', $idReserva)
-                    ->whereHas('reserva', function ($query) {
-                        $query->where('estado', 1);
-                    })->exists();
 
-                if (!$otrasReservasActivas) {
-                    $habitacion->update(['estado' => 1]); // Marcar como disponible
-                }
-            }
-        }
+        // Se excluye $idReserva del recálculo porque este método se llama justo antes
+        // de eliminar/cancelar esa reserva, mientras su registro todavía existe en BD.
+        $habitacionReserva?->habitacion?->actualizarDisponibilidad($idReserva);
     }
 }

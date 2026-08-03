@@ -31,7 +31,7 @@ class Pago extends Model
         return[
             'id'            => $this->id,
             'monto'         => $this->monto,
-            'fecha'         => $this->fecha,
+            'fecha'         => $this->fecha ? \Illuminate\Support\Carbon::parse($this->fecha)->format('Y-m-d') : null,
             'estado'        => $this->estado,
             'comprobante'   => $this->comprobante,
             // Cliente con datos de persona asociada

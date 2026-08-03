@@ -33,23 +33,4 @@ class HabitacionReserva extends Model
                     ->withTimestamps()
                     ->withPivot(['created_at', 'updated_at', 'deleted_at']);
     }
-
-    protected static function boot()
-    {
-        parent::boot();
-
-        // Verificar el estado de la habitación antes de eliminar
-        static::deleting(function($habitacionReserva) {
-            $habitacion = $habitacionReserva->habitacion;
-            
-            // Si no quedarán más reservas activas, marcar como disponible
-            if ($habitacion && !$habitacion->habitacionReservas()
-                ->where('id', '!=', $habitacionReserva->id)
-                ->whereHas('reserva', function($query) {
-                    $query->where('estado', 1);
-                })->exists()) {
-                $habitacion->update(['estado' => 1]);
-            }
-        });
-    }
 }

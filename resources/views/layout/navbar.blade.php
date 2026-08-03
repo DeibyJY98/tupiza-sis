@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <title>Dashboard - TupizaSis</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="{{ asset('css/navbar.css') }}">
@@ -16,7 +17,9 @@
       <img src="{{ asset('storage/general/IcoTupiza.png')}}" alt="">
     </div>
     @php
-        $usuario = Cache::get('persona');
+        $usuario = Auth::guard(session('auth_guard'))->user();
+        $notificaciones = \App\Models\Notificacion::latest()->take(10)->get();
+        $notificacionesNoLeidas = \App\Models\Notificacion::where('leida', false)->count();
     @endphp
     <div class="user-info">
       <img src="{{asset('storage/general/user-avatar.png')}}" alt="User" class="user-avatar" />
@@ -36,6 +39,8 @@
         <li><a href="{{ route('mostrar.cliente')}}"><i>🧍</i> Clientes </a></li>
         <li><a href="{{ route('mostrar.trabajador')}}"><i>🧑‍💼</i> Trabajadores </a></li>
         <li><a href="{{ route('mostrar.habitacion') }}"><i>🏨</i> Habitaciones </a></li>
+        <li><a href="{{ route('mostrar.tipo_habitacion') }}"><i>🛏️</i> Tipos de Habitación </a></li>
+        <li><a href="{{ route('mostrar.caracteristica') }}"><i>🏷️</i> Características </a></li>
         <li><a href="{{ route('mostrar.reserva') }}"><i>📅</i> Reservas </a></li>
         <li><a href="{{ route('mostrar.servicio_extra') }}"><i>🛎️</i> Servicios Extras </a></li>
         <li><a href="{{ route('mostrar.pago') }}"><i>💳</i> Pagos </a></li>
@@ -52,7 +57,34 @@
 
   <div class="main-content">
     <header class="top-bar">
-      <div class="notifications">🔔<span class="badge">1</span></div>
+      <div class="notifications" id="notificacionesToggle">
+        🔔
+        @if ($notificacionesNoLeidas > 0)
+          <span class="badge">{{ $notificacionesNoLeidas > 9 ? '9+' : $notificacionesNoLeidas }}</span>
+        @endif
+
+        <div class="notifications-panel" id="notificacionesPanel" style="display:none">
+          <div class="notifications-header">
+            <span>Notificaciones</span>
+            @if ($notificacionesNoLeidas > 0)
+              <form action="{{ route('notificaciones.marcar-leidas') }}" method="POST">
+                @csrf
+                <button type="submit" class="btn-marcar-leidas">Marcar todas como leídas</button>
+              </form>
+            @endif
+          </div>
+          <ul class="notifications-list">
+            @forelse ($notificaciones as $notificacion)
+              <li class="{{ $notificacion->leida ? 'leida' : 'no-leida' }}">
+                <p>{{ $notificacion->mensaje }}</p>
+                <span class="notifications-time">{{ $notificacion->created_at->diffForHumans() }}</span>
+              </li>
+            @empty
+              <li class="notifications-empty">Sin notificaciones por ahora.</li>
+            @endforelse
+          </ul>
+        </div>
+      </div>
       <div class="user-header">
         <a href="{{ route('logout') }}">
           <img src="{{asset('storage/general/user-avatar.png')}}" alt="User" class="user-avatar" />

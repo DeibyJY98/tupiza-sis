@@ -5,7 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\DetalleRol;
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 class UserMiddleware
@@ -17,7 +17,7 @@ class UserMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $user = Cache::get('persona');     
+        $user = Auth::guard($request->session()->get('auth_guard'))->user();
         if(!$user){
             return redirect()->route('login');
         }   

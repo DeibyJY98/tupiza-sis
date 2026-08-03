@@ -161,3 +161,49 @@ tr:nth-child(even) {
     background-color: #dc2626;
     color: white;
 }
+/* Paginación */
+.pagination {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 15px;
+    padding: 12px 15px;
+    background: #1e293b;
+    border-radius: 10px;
+}
+.pagination-info {
+    color: #9ca3af;
+    font-size: 13px;
+}
+.pagination-controles {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.pagination-nav,
+.pagination-page {
+    padding: 6px 12px;
+    font-weight: 600;
+    font-size: 13px;
+    border-radius: 6px;
+    cursor: pointer;
+    border: none;
+    background: #334155;
+    color: white;
+    transition: 0.2s ease-in-out;
+}
+.pagination-nav:hover,
+.pagination-page:hover {
+    background: #475569;
+}
+.pagination-nav:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+.pagination-page.activo {
+    background: #fbbf24;
+    color: #1e293b;
+}

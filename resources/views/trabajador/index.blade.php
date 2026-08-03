@@ -15,43 +15,31 @@
     <div class="alerta-exito">
         {{ session('success') }}
     </div>
-@endif    
+@endif
 
 <main class="container">
     <div class="header-section">
         <h1>Gestión de Trabajadores</h1>
         <div class="right-buttons">
-            <button class="btn yellow">📄 PDF</button>
+            <button type="button" class="btn yellow" id="btnExportarPdf" data-ruta-pdf="{{ route('pdf.trabajador') }}">📄 PDF</button>
             <button class="btn green" id="abrirModalCrear">Crear Trabajador</button>
         </div>
     </div>
     <!--SECCION DE FILTROS -->
     <div class="filters">
-      <div class="input-group">
-        <input type="date" id="fecha_inicio" class="input-field" placeholder=" " required>
-        <label for="fecha_inicio" class="floating-label">Fecha Inicio</label>
-      </div>
-
-      <div class="input-group">
-        <input type="date" id="fecha_fin" class="input-field" placeholder=" " required>
-        <label for="fecha_fin" class="floating-label">Fecha Final</label>
-      </div>
-
       <div class="input-group" style="pading:5%;">
         <select id="estado" style="color: #4f37d2; border: 2px solid #4f37d2; background-color: transparent;">
           <option value="">Seleccionar Estado</option>
-          <option value="completado">Completado</option>
-          <option value="cancelado">Cancelado</option>
+          <option value="1">Activo</option>
+          <option value="0">Inactivo</option>
         </select>
       </div>
-
       <div class="input-group full">
-        <input type="text" id="busqueda" placeholder="Busca un nombre de Cliente">
+        <input type="text" id="busqueda" placeholder="Busca un nombre de Trabajador">
       </div>
 
       <button class="btn blue" onclick="buscar()">Buscar</button>
       <button class="btn red" onclick="limpiar()">Limpiar</button>
-
     </div>
     <!--TABLA DE REGISTROS -->
     <div>
@@ -61,18 +49,22 @@
                     <th><span>ID</span></th>
                     <th><span>Nombre</span></th>
                     <th><span>Cargo</span></th>
+                    <th><span>Salario</span></th>
                     <th><span>Estado</span></th>
                     <th><span>Acciones</span></th>
                 </tr>
             </thead>
             <tbody>
             @foreach ($datos as $dato)
-            <tr>
+            <tr data-id="{{ $dato['id'] }}"
+                data-filtro-texto="{{ strtolower(($dato['persona']['nombre'] ?? '').' '.($dato['persona']['apellido'] ?? '').' '.$dato['cargo']) }}"
+                data-filtro-estado="{{ $dato['estado'] }}">
                 <td>{{ $dato['id'] }}</td>
                 <td>
                     {{ isset($dato['persona']['nombre']) ? $dato['persona']['nombre'].' '.$dato['persona']['apellido'] : '' }}
                 </td>
                 <td>{{ $dato['cargo'] }}</td>
+                <td>{{ $dato['salario'] }}</td>
                 <td>
                     @if ($dato['estado'] == 1)
                         <span style="color: #22c55e; border: 2px solid #22c55e; background-color: transparent; padding: 5%;">
@@ -82,18 +74,20 @@
                         <span style="color: #ef4444; border: 2px solid #ef4444; background-color: transparent; padding: 5% 8%;">
                         Inactivo
                         </span>
-                    @endif    
+                    @endif
                 </td>
                 <td class="acciones">
                     <!-- Botón editar -->
                     <button class="btn btn-edit btn-abrir-editar"
                         data-id="{{ $dato['id'] }}"
                         data-cargo="{{ $dato['cargo'] }}"
-                        data-estado="{{ $dato['estado'] }}">
+                        data-salario="{{ $dato['salario'] }}"
+                        data-estado="{{ $dato['estado'] }}"
+                        data-id-persona="{{ $dato['persona']['id'] ?? '' }}">
                         Editar
                     </button>
-                    
-                    <button class="btn btn-pdf" type="submit">PDF</button>
+
+                    <button type="button" class="btn btn-pdf" data-ruta-pdf="{{ route('pdf.trabajador') }}" data-id="{{ $dato['id'] }}">PDF</button>
 
                     <!-- Botón eliminar -->
                     <button class="btn btn-cancelar btn-abrir-eliminar"
@@ -101,7 +95,7 @@
                         Eliminar
                     </button>
                 </td>
-            </tr> 
+            </tr>
             @endforeach
             </tbody>
         </table>
@@ -120,23 +114,28 @@
             @csrf
 
             <div class="campo-form">
-                <label>Nombre:</label>
-                <input type="text" name="nombre" required>
+                <label>Persona:</label>
+                <select name="id_persona" required>
+                    <option value="">-- Seleccione una persona --</option>
+                    @foreach ($personas as $persona)
+                        <option value="{{ $persona->id }}">{{ $persona->nombre }} {{ $persona->apellido }}</option>
+                    @endforeach
+                </select>
             </div>
 
             <div class="campo-form">
-                <label>Apellido:</label>
-                <input type="text" name="apellido" required>
+                <label>Cargo:</label>
+                <input type="text" name="cargo" required>
             </div>
 
             <div class="campo-form">
-                <label>Sueldo:</label>
-                <input type="number" name="sueldo" step="0.01" required>
+                <label>Salario:</label>
+                <input type="number" name="salario" step="0.01" min="0" required>
             </div>
 
             <div class="campo-form">
-                <label>Fecha de Contrato:</label>
-                <input type="date" name="fecha_contrato" required>
+                <label>Estado:</label>
+                <input type="number" name="estado" value="1" required>
             </div>
 
             <div class="modal-footer">
@@ -158,26 +157,30 @@
         <form action="{{ route('editar.trabajador') }}" method="POST">
             @csrf
 
-            <input type="hidden" name="id" id="id">
+            <input type="hidden" name="id" id="edit_id">
 
             <div class="campo-form">
-                <label>Nombre:</label>
-                <input type="text" name="nombre" id="edit_nombre" required>
+                <label>Persona:</label>
+                <select name="id_persona" id="edit_id_persona" required>
+                    @foreach ($personas as $persona)
+                        <option value="{{ $persona->id }}">{{ $persona->nombre }} {{ $persona->apellido }}</option>
+                    @endforeach
+                </select>
             </div>
 
             <div class="campo-form">
-                <label>Apellido:</label>
-                <input type="text" name="apellido" id="edit_apellido" required>
+                <label>Cargo:</label>
+                <input type="text" name="cargo" id="edit_cargo" required>
             </div>
 
             <div class="campo-form">
-                <label>Sueldo:</label>
-                <input type="number" name="sueldo" id="edit_sueldo" step="0.01" required>
+                <label>Salario:</label>
+                <input type="number" name="salario" id="edit_salario" step="0.01" min="0" required>
             </div>
 
             <div class="campo-form">
-                <label>Fecha de Contrato:</label>
-                <input type="date" name="fecha_contrato" id="edit_fecha" required>
+                <label>Estado:</label>
+                <input type="number" name="estado" id="edit_estado" required>
             </div>
 
             <div class="modal-footer">
@@ -232,19 +235,19 @@
 
     /* === Modal Editar === */
     const modalEditar = document.getElementById('modalEditar');
-    const editNombre = document.getElementById('edit_nombre');
-    const editApellido = document.getElementById('edit_apellido');
-    const editSueldo = document.getElementById('edit_sueldo');
-    const editFecha = document.getElementById('edit_fecha');
-    const editId = document.getElementById('id');
+    const editId = document.getElementById('edit_id');
+    const editIdPersona = document.getElementById('edit_id_persona');
+    const editCargo = document.getElementById('edit_cargo');
+    const editSalario = document.getElementById('edit_salario');
+    const editEstado = document.getElementById('edit_estado');
 
     document.querySelectorAll('.btn-abrir-editar').forEach(boton => {
         boton.addEventListener('click', () => {
             editId.value = boton.getAttribute('data-id');
-            editNombre.value = boton.getAttribute('data-nombre');
-            editApellido.value = boton.getAttribute('data-apellido');
-            editSueldo.value = boton.getAttribute('data-sueldo');
-            editFecha.value = boton.getAttribute('data-fecha').split(' ')[0]; // formatear fecha si incluye hora
+            editIdPersona.value = boton.getAttribute('data-id-persona');
+            editCargo.value = boton.getAttribute('data-cargo');
+            editSalario.value = boton.getAttribute('data-salario');
+            editEstado.value = boton.getAttribute('data-estado');
 
             modalEditar.style.display = 'flex';
         });

@@ -12,7 +12,7 @@
 */
 
 pest()->extend(Tests\TestCase::class)
- // ->use(Illuminate\Foundation\Testing\RefreshDatabase::class)
+    ->use(Illuminate\Foundation\Testing\RefreshDatabase::class)
     ->in('Feature');
 
 /*
@@ -44,4 +44,44 @@ expect()->extend('toBeOne', function () {
 function something()
 {
     // ..
+}
+
+/**
+ * Crea un rol de prueba. El orden de creación dentro de un test determina su id
+ * autoincremental, que es lo que AuthController::login usa para resolver el guard
+ * (1 => administrador, 2 => recepcionista, 3 => cliente).
+ */
+function crearRol(string $nombre): \App\Models\Rol
+{
+    return \App\Models\Rol::create(['nombre' => $nombre, 'estado' => 1]);
+}
+
+/**
+ * Crea una Persona + User asociados a un rol dado.
+ *
+ * @return array{0: \App\Models\User, 1: string} [usuario, contraseña en texto plano]
+ */
+function crearUsuarioConRol(\App\Models\Rol $rol, string $username): array
+{
+    $persona = \App\Models\Persona::create([
+        'nombre' => 'Test',
+        'apellido' => 'Usuario',
+        'cedula' => fake()->unique()->numerify('########'),
+        'celular' => fake()->numerify('########'),
+        'correo' => $username.'@test.com',
+        'estado' => 1,
+    ]);
+
+    $password = 'secret123';
+
+    $user = \App\Models\User::create([
+        'username' => $username,
+        'email' => $username.'@test.com',
+        'password' => $password,
+        'estado' => 1,
+        'id_rol' => $rol->id,
+        'id_persona' => $persona->id,
+    ]);
+
+    return [$user, $password];
 }

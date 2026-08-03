@@ -2,62 +2,112 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\ExportaPdf;
 use App\Models\Permiso;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class PermisoController extends Controller
 {
+    use ExportaPdf;
+
     public function index()
     {
-        $datos = Permiso::get();       
-        return view("permiso.index",compact('datos'));
-    }
+        $datos = Permiso::get();
+        $datos = $datos->map->toShow();
 
-    public function indexUpdate(Request $request){
-
-        $dato = Permiso::find($request->id);
-        
-        return view('permiso.editar',compact('dato'));
+        return view("permiso.index", compact('datos'));
     }
 
     public function store(Request $request)
     {
-        //
-    }
-
-    public function show(Permiso $permiso)
-    {
-        //
-    }
-
-    public function update(Request $request)
-    {
         try {
-            $modificar = $request->validate([
-                    'nombre' => 'required|string|max:15'                
-                ], [
-                    'nombre.required' => 'El campo nombre es obligatorio.',
-                    'nombre.string'   => 'El nombre debe ser una cadena de texto válida.',
-                    'nombre.max'      => 'El nombre no puede tener más de 15 caracteres.',
-                ]);  
+            $request->validate([
+                'nombre' => 'required|string|max:255|unique:permisos,nombre',
+            ], $this->rules);
 
-            $dato = Rol::find($request->id);
-            $dato->update($modificar);
-                } 
-        catch(ValidationException $e){
+            $nuevo = [
+                'nombre' => $request->input('nombre'),
+            ];
+
+            Permiso::create($nuevo);
+        }
+        catch (ValidationException $e) {
             $mensajes = collect($e->errors())->flatten()->join(' ');
             return back()->with('error', $mensajes);
         }
         catch (\Exception $e) {
             return back()->with('error', $e->getMessage());
         }
+
         return redirect()->route('mostrar.permiso');
     }
 
-    public function destroy(Permiso $permiso)
-    {        
-        $datos= Rol::find($request->id);
-        $datos->delete();
+    public function update(Request $request)
+    {
+        try {
+            $modificar = $request->validate([
+                'id' => 'required|exists:permisos,id',
+                'nombre' => 'sometimes|string|max:255|unique:permisos,nombre,'.$request->id,
+            ], $this->rules);
+
+            $dato = Permiso::find($request->id);
+
+            if (!$dato) {
+                return back()->with('error', 'No se encontró el permiso.');
+            }
+
+            $dato->update($modificar);
+        }
+        catch (ValidationException $e) {
+            $mensajes = collect($e->errors())->flatten()->join(' ');
+            return back()->with('error', $mensajes);
+        }
+        catch (\Exception $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
         return redirect()->route('mostrar.permiso');
     }
+
+    public function destroy(Request $request)
+    {
+        $dato = Permiso::find($request->inputIdEliminar);
+
+        if (!$dato) {
+            return back()->with('error', 'No se encontró el permiso.');
+        }
+
+        $dato->delete();
+
+        return redirect()->route('mostrar.permiso');
+    }
+
+    public function exportarPdf(Request $request)
+    {
+        $consulta = Permiso::query();
+
+        if ($request->filled('ids')) {
+            $consulta->whereIn('id', $request->input('ids'));
+        }
+
+        $filas = $consulta->get()->map(fn (Permiso $permiso) => [
+            $permiso->id,
+            $permiso->nombre,
+        ])->all();
+
+        return $this->generarPdf(
+            'Reporte de Permisos',
+            ['ID', 'Nombre'],
+            $filas,
+            'permisos.pdf'
+        );
+    }
+
+    private $rules = [
+        'nombre.required' => 'El nombre del permiso es obligatorio.',
+        'nombre.string' => 'El nombre debe ser texto.',
+        'nombre.max' => 'El nombre no puede exceder 255 caracteres.',
+        'nombre.unique' => 'Ya existe un permiso con ese nombre.',
+    ];
 }

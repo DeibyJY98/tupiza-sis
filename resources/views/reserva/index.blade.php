@@ -17,7 +17,7 @@
   <div class="header-section">
     <h1>Gestión de Reservas</h1>    
     <div class="right-buttons">
-      <button class="btn yellow">📄 PDF</button>
+      <button type="button" class="btn yellow" id="btnExportarPdf" data-ruta-pdf="{{ route('pdf.reserva') }}">📄 PDF</button>
       <button class="btn green" id="abrirModalCrear">Crear Reserva</button>
     </div>
   </div>
@@ -34,8 +34,8 @@
     <div class="input-group" style="pading:5%;">
       <select id="estado" style="color: #4f37d2; border: 2px solid #4f37d2; background-color: transparent;">
         <option value="">Seleccionar Estado</option>
-        <option value="completado">Completado</option>
-        <option value="cancelado">Cancelado</option>
+        <option value="1">Completado</option>
+        <option value="0">Cancelado</option>
       </select>
     </div>
     <div class="input-group full">
@@ -62,7 +62,10 @@
     </thead>
     <tbody>
     @foreach ($datos as $dato)
-    <tr>
+    <tr data-id="{{ $dato['id'] }}"
+        data-filtro-texto="{{ strtolower(($dato['cliente']['nombre'] ?? '').' '.($dato['cliente']['apellido'] ?? '').' '.($dato['trabajador']['nombre'] ?? '').' '.($dato['trabajador']['apellido'] ?? '').' '.($dato['habitaciones'][0]['numero_habitacion'] ?? '')) }}"
+        data-filtro-estado="{{ $dato['estado'] }}"
+        data-filtro-fecha="{{ $dato['fecha_inicio'] }}">
         <td>{{ $dato['id'] }}</td>
         <td>{{ $dato['fecha_inicio'] }}</td>
         <td>{{ $dato['fecha_fin'] }}</td>
@@ -105,11 +108,7 @@
                 Editar
             </button>
 
-            <form action="{{ route('mostrar.pago') }}" method="GET">
-              @csrf
-              <input type="hidden" name="id" value="{{ $dato['id'] ?? '' }}">  
-              <button class="btn btn-pdf" type="submit">PDF</button>
-            </form>
+            <button type="button" class="btn btn-pdf" data-ruta-pdf="{{ route('pdf.reserva') }}" data-id="{{ $dato['id'] }}">PDF</button>
 
             <!-- Botón eliminar -->
             <button class="btn btn-cancelar btn-abrir-eliminar"

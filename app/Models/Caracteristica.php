@@ -13,4 +13,13 @@ class Caracteristica extends Model
         'nombre',
         'estado',
     ];
+
+    public function toShow()
+    {
+        return [
+            'id' => $this->id,
+            'nombre' => $this->nombre,
+            'estado' => $this->estado,
+        ];
+    }
 }

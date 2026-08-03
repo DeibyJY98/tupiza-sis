@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\ExportaPdf;
 use App\Models\Pago;
 use App\Models\Reserva;
 use App\Models\Cliente;
@@ -10,6 +11,8 @@ use Illuminate\Validation\ValidationException;
 
 class PagoController extends Controller
 {
+    use ExportaPdf;
+
     public function index()
     {
       $datos = Pago::get();
@@ -27,12 +30,16 @@ class PagoController extends Controller
         $request->validate([
           'fecha' => 'required|date',
           'monto' => 'required|numeric|min:0',
-          'comprobante' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+          'comprobante' => 'required|image|mimes:jpg,jpeg,png|max:2048',
           'estado' => 'required|numeric',
           'id_cliente' => 'required|exists:clientes,id',
           'id_reserva' => 'required|exists:reservas,id',
         ], $this->rules);
-  
+
+        if ((int) $request->input('estado', 1) === 1) {
+          $this->validarSaldoPendiente($request->id_reserva, $request->monto);
+        }
+
         $ubicacion = null;
         if ($request->file('comprobante')) {
           $nombre ="RES-" . $request->id_reserva . "-" . time() . ".jpg";
@@ -79,6 +86,14 @@ class PagoController extends Controller
                 return back()->with('error', 'El pago no existe.');
             }
 
+            $idReserva = $request->input('id_reserva', $pago->id_reserva);
+            $montoNuevo = $request->input('monto', $pago->monto);
+            $estadoNuevo = (int) $request->input('estado', $pago->estado);
+
+            if ($estadoNuevo === 1) {
+                $this->validarSaldoPendiente($idReserva, $montoNuevo, excluirPago: $pago->id);
+            }
+
             $modificar = [
                 'fecha' => $request->input('fecha', $pago->fecha),
                 'monto' => $request->input('monto', $pago->monto),
@@ -113,12 +128,60 @@ class PagoController extends Controller
         try {
             $pago = Pago::find($request->inputIdEliminar);
             if ($pago) {
-                $pago->delete();
+                $pago->update(['estado' => 0]);
                 return redirect()->route('mostrar.pago')->with('success', 'Pago eliminado correctamente.');
             }
             return redirect()->route('mostrar.pago')->with('error', 'El pago no existe.');
         } catch (\Exception $e) {
             return back()->with('error', 'Error al eliminar el pago: ' . $e->getMessage());
+        }
+    }
+
+    public function exportarPdf(Request $request)
+    {
+        $consulta = Pago::with(['cliente.persona', 'reserva']);
+
+        if ($request->filled('ids')) {
+            $consulta->whereIn('id', $request->input('ids'));
+        }
+
+        $filas = $consulta->get()->map(fn (Pago $pago) => [
+            $pago->id,
+            $pago->fecha ? \Illuminate\Support\Carbon::parse($pago->fecha)->format('d/m/Y') : '',
+            $pago->id_reserva ? 'RES-' . $pago->id_reserva : '',
+            trim(optional(optional($pago->cliente)->persona)->nombre . ' ' . optional(optional($pago->cliente)->persona)->apellido),
+            $pago->monto,
+            $pago->estado == 1 ? 'Completado' : 'Cancelado',
+        ])->all();
+
+        return $this->generarPdf(
+            'Reporte de Pagos',
+            ['ID', 'Fecha', 'Reserva', 'Cliente', 'Monto', 'Estado'],
+            $filas,
+            'pagos.pdf'
+        );
+    }
+
+    /**
+     * Un pago "completado" (estado 1) no puede hacer que la suma de pagos de la
+     * reserva supere su costo_total. Se excluyen los pagos "cancelado" del cálculo.
+     */
+    private function validarSaldoPendiente($idReserva, $monto, $excluirPago = null)
+    {
+        $reserva = Reserva::findOrFail($idReserva);
+
+        $pagadoQuery = Pago::where('id_reserva', $reserva->id)->where('estado', 1);
+        if ($excluirPago) {
+            $pagadoQuery->where('id', '!=', $excluirPago);
+        }
+        $pagado = $pagadoQuery->sum('monto');
+
+        $saldoPendiente = $reserva->costo_total - $pagado;
+
+        if ($monto > $saldoPendiente) {
+            throw ValidationException::withMessages([
+                'monto' => "El monto ({$monto}) excede el saldo pendiente de la reserva ({$saldoPendiente}).",
+            ]);
         }
     }
 

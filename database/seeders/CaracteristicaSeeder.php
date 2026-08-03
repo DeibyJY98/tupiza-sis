@@ -3,16 +3,26 @@
 namespace Database\Seeders;
 
 use App\Models\Caracteristica;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class CaracteristicaSeeder extends Seeder
 {
     public function run(): void
     {
-        Caracteristica::create(['nombre' => 'television', 'estado' => 1]);
-        Caracteristica::create(['nombre' => 'aire', 'estado' => 1]);
-        Caracteristica::create(['nombre' => 'baño privado', 'estado' => 1]);
-        Caracteristica::create(['nombre' => 'baño compartido', 'estado' => 1]);
+        // Orden usado por TipoHabitacionCaracteristicaSeeder (índices 0-7).
+        $caracteristicas = [
+            ['nombre' => 'Televisión', 'estado' => 1],
+            ['nombre' => 'Aire acondicionado', 'estado' => 1],
+            ['nombre' => 'Baño privado', 'estado' => 1],
+            ['nombre' => 'Baño compartido', 'estado' => 1],
+            ['nombre' => 'Wifi', 'estado' => 1],
+            ['nombre' => 'Balcón', 'estado' => 1],
+            ['nombre' => 'Minibar', 'estado' => 0],
+            ['nombre' => 'Vista a la montaña', 'estado' => 1],
+        ];
+
+        foreach ($caracteristicas as $caracteristica) {
+            Caracteristica::create($caracteristica);
+        }
     }
 }

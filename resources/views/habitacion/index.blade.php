@@ -16,7 +16,7 @@
   <div class="header-section">
     <h1>Gestión de Habitaciones</h1>   
     <div class="right-buttons">
-      <button class="btn yellow">📄 PDF</button>
+      <button type="button" class="btn yellow" id="btnExportarPdf" data-ruta-pdf="{{ route('pdf.habitacion') }}">📄 PDF</button>
       <button class="btn green" id="abrirModalCrear">Crear Habitación</button>
     </div> 
   </div>
@@ -34,13 +34,13 @@
     <div class="input-group" style="pading:5%;">
       <select id="estado" style="color: #4f37d2; border: 2px solid #4f37d2; background-color: transparent;">
         <option value="">Seleccionar Estado</option>
-        <option value="completado">Completado</option>
-        <option value="cancelado">Cancelado</option>
+        <option value="1">Disponible</option>
+        <option value="0">No disponible</option>
       </select>
     </div>
 
     <div class="input-group full">
-      <input type="text" id="busqueda" placeholder="Busca un nombre de Cliente">
+      <input type="text" id="busqueda" placeholder="Busca un número de habitación o tipo">
     </div>
 
     <button id="btnFiltrar" class="btn blue" onclick="buscar()">Buscar</button>
@@ -60,9 +60,11 @@
     </thead>
     <tbody>
       @foreach ($datos as $dato)
-      <tr>
+      <tr data-id="{{ $dato['id'] }}"
+          data-filtro-texto="{{ strtolower($dato['numero_habitacion'].' '.($dato['tipo_habitacion']['nombre'] ?? '').' '.$dato['planta']) }}"
+          data-filtro-estado="{{ $dato['estado'] }}">
           <td>{{ $dato['id'] }}</td>
-          <td>{{ $dato['numero_habitacion'] }}</td>   
+          <td>{{ $dato['numero_habitacion'] }}</td>
           <td>{{ $dato['tipo_habitacion']['nombre'] ?? 'Sin tipo' }}</td>
           <td>Piso {{ $dato['planta'] }}</td>   
           <td>
@@ -87,11 +89,7 @@
                   Editar
               </button>
 
-              <form action="{{ route('mostrar.pago') }}" method="GET">
-                @csrf
-                <input type="hidden" name="id" value="{{ $dato['id'] ?? '' }}">  
-                <button class="btn btn-pdf" type="submit">PDF</button>
-              </form>
+              <button type="button" class="btn btn-pdf" data-ruta-pdf="{{ route('pdf.habitacion') }}" data-id="{{ $dato['id'] }}">PDF</button>
 
               <!-- Botón eliminar -->
               <button class="btn btn-cancelar btn-abrir-eliminar"

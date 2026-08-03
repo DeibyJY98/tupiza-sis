@@ -15,7 +15,8 @@ class Permiso extends Model
     
     public function toShow(){
         return [
-            'nombre' => $this->name
+            'id' => $this->id,
+            'nombre' => $this->nombre,
         ];
     }
 }

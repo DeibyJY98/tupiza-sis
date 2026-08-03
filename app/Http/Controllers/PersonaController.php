@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\ExportaPdf;
 use App\Models\Persona;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
 class PersonaController extends Controller
 {
+    use ExportaPdf;
+
     public function index()
     {
         $datos = Persona::get();
@@ -85,8 +88,34 @@ class PersonaController extends Controller
     public function destroy(Request $request)
     {
         $datos = Persona::find($request->inputIdEliminar);
-        $datos->delete();
+        $datos->update(['estado' => 0]);
         return redirect()->route('mostrar.persona');
+    }
+
+    public function exportarPdf(Request $request)
+    {
+        $consulta = Persona::query();
+
+        if ($request->filled('ids')) {
+            $consulta->whereIn('id', $request->input('ids'));
+        }
+
+        $filas = $consulta->get()->map(fn (Persona $persona) => [
+            $persona->id,
+            $persona->nombre,
+            $persona->apellido,
+            $persona->cedula,
+            $persona->celular,
+            $persona->correo,
+            $persona->estado == 1 ? 'Activo' : 'Inactivo',
+        ])->all();
+
+        return $this->generarPdf(
+            'Reporte de Personas',
+            ['ID', 'Nombre', 'Apellido', 'Cédula', 'Celular', 'Correo', 'Estado'],
+            $filas,
+            'personas.pdf'
+        );
     }
 
     private $rules = [

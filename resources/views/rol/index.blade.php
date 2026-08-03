@@ -14,31 +14,21 @@
   <div class="header-section">
     <h1>Gestión de Roles</h1>
     <div class="right-buttons">
-      <button class="btn yellow">📄 PDF</button>
+      <button type="button" class="btn yellow" id="btnExportarPdf" data-ruta-pdf="{{ route('pdf.rol') }}">📄 PDF</button>
       <button class="btn green" id="abrirModalCrear">Crear Rol</button>
     </div>
   </div>
   <div class="filters">
-    <div class="input-group">
-      <input type="date" id="fecha_inicio" class="input-field" placeholder=" " required>
-      <label for="fecha_inicio" class="floating-label">Fecha Inicio</label>
-    </div>
-
-    <div class="input-group">
-      <input type="date" id="fecha_fin" class="input-field" placeholder=" " required>
-      <label for="fecha_fin" class="floating-label">Fecha Final</label>
-    </div>
-
     <div class="input-group" style="pading:5%;">
       <select id="estado" style="color: #4f37d2; border: 2px solid #4f37d2; background-color: transparent;">
         <option value="">Seleccionar Estado</option>
-        <option value="completado">Completado</option>
-        <option value="cancelado">Cancelado</option>
+        <option value="1">Activo</option>
+        <option value="0">Inactivo</option>
       </select>
     </div>
 
     <div class="input-group full">
-      <input type="text" id="busqueda" placeholder="Busca un nombre de Cliente">
+      <input type="text" id="busqueda" placeholder="Busca un nombre de Rol">
     </div>
 
     <button class="btn blue" onclick="buscar()">Buscar</button>
@@ -57,7 +47,7 @@
     </thead>
     <tbody>
       @foreach ($datos as $dato)
-      <tr>
+      <tr data-id="{{ $dato->id }}" data-filtro-texto="{{ strtolower($dato->nombre) }}" data-filtro-estado="{{ $dato->estado }}">
         <td>{{ $dato->id }}</td>
         <td>{{ $dato->nombre }}</td>
         <td>
@@ -78,11 +68,7 @@
             <button class="btn btn-edit" type="submit">Editar</button>
           </form>
 
-          <form action="{{ route('mostrar.pago') }}" method="GET">
-            @csrf
-            <input type="hidden" name="id" value="{{ $dato['id'] ?? '' }}">  
-            <button class="btn btn-pdf" type="submit">PDF</button>
-          </form>
+          <button type="button" class="btn btn-pdf" data-ruta-pdf="{{ route('pdf.rol') }}" data-id="{{ $dato->id }}">PDF</button>
 
           <form action="{{ route('eliminar.rol') }}" method="POST">
             @csrf

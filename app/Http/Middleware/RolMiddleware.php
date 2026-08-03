@@ -5,7 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\DetalleRol;
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
 
 class RolMiddleware
@@ -17,15 +17,9 @@ class RolMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $user = Cache::get('persona');     
+        $user = Auth::guard($request->session()->get('auth_guard'))->user();
         if(!$user){
             return redirect()->route('login');
-        }   
-
-        // Asegurarnos de que tenemos un objeto User válido
-        if (!$user instanceof \App\Models\User) {
-            Cache::forget('persona');
-            return redirect()->route('login')->with('error', 'Sesión inválida, por favor inicie sesión nuevamente');
         }
 
         $permisos = DetalleRol::where('id_rol', $user->id_rol)->select('id_permiso')->get();

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\ExportaPdf;
 use App\Models\Reserva;
 use App\Models\Trabajador;
 use App\Models\Cliente;
@@ -14,6 +15,8 @@ use Carbon\Carbon;
 
 class ReservaController extends Controller
 {
+  use ExportaPdf;
+
   public function index(){
     $datos = Reserva::get();  
     $habitaciones = Habitacion::get();
@@ -162,9 +165,9 @@ class ReservaController extends Controller
       try {
           $datos = Reserva::find($request->inputIdEliminar);
           if ($datos) {
-              // Liberar la habitación antes de eliminar la reserva
+              // Liberar la habitación antes de cancelar la reserva
               $this->reservaService->liberarHabitacion($datos->id);
-              $datos->delete();
+              $datos->update(['estado' => 0]);
           }
           return redirect()->route('mostrar.reserva')->with('success', 'Reserva eliminada correctamente');
       } catch (\Exception $e) {
@@ -203,6 +206,33 @@ class ReservaController extends Controller
       } catch (\Exception $e) {
           return response()->json(['error' => $e->getMessage()], 500);
       }
+  }
+
+  public function exportarPdf(Request $request)
+  {
+    $consulta = Reserva::with(['cliente.persona', 'trabajador.persona', 'habitaciones']);
+
+    if ($request->filled('ids')) {
+      $consulta->whereIn('id', $request->input('ids'));
+    }
+
+    $filas = $consulta->get()->map(fn (Reserva $reserva) => [
+      $reserva->id,
+      \Illuminate\Support\Carbon::parse($reserva->fecha_inicio)->format('d/m/Y'),
+      \Illuminate\Support\Carbon::parse($reserva->fecha_fin)->format('d/m/Y'),
+      $reserva->costo_total,
+      trim(optional(optional($reserva->trabajador)->persona)->nombre . ' ' . optional(optional($reserva->trabajador)->persona)->apellido),
+      trim(optional(optional($reserva->cliente)->persona)->nombre . ' ' . optional(optional($reserva->cliente)->persona)->apellido),
+      $reserva->habitaciones->pluck('numero_habitacion')->join(', '),
+      $reserva->estado == 1 ? 'Completado' : 'Cancelado',
+    ])->all();
+
+    return $this->generarPdf(
+      'Reporte de Reservas',
+      ['ID', 'Fecha Inicio', 'Fecha Fin', 'Costo Total', 'Trabajador', 'Cliente', 'Habitación(es)', 'Estado'],
+      $filas,
+      'reservas.pdf'
+    );
   }
 
   private $rules = [

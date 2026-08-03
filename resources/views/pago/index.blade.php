@@ -17,7 +17,7 @@
   <div class="header-section">
     <h1>Gestión de Pagos</h1>
     <div class="right-buttons">
-      <button class="btn yellow">📄 PDF</button>
+      <button type="button" class="btn yellow" id="btnExportarPdf" data-ruta-pdf="{{ route('pdf.pago') }}">📄 PDF</button>
       <button class="btn green" id="abrirModalCrear">Crear Pago</button>
     </div>
   </div>
@@ -34,8 +34,8 @@
     <div class="input-group" style="pading:5%;">
       <select id="estado" style="color: #4f37d2; border: 2px solid #4f37d2; background-color: transparent;">
         <option value="">Seleccionar Estado</option>
-        <option value="completado">Completado</option>
-        <option value="cancelado">Cancelado</option>
+        <option value="1">Completado</option>
+        <option value="0">Cancelado</option>
       </select>
     </div>
     <div class="input-group full">
@@ -60,7 +60,10 @@
     </thead>
     <tbody id="tablaPagos">
       @foreach ($datos as $dato)
-      <tr>  
+      <tr data-id="{{ $dato['id'] }}"
+          data-filtro-texto="{{ strtolower(($dato['cliente']['nombre'] ?? '').' '.($dato['cliente']['apellido'] ?? '').' '.($dato['cliente']['cedula'] ?? '').' RES-'.($dato['reserva']['id'] ?? '')) }}"
+          data-filtro-estado="{{ $dato['estado'] }}"
+          data-filtro-fecha="{{ $dato['fecha'] ?? '' }}">
         <td>{{ $dato['fecha'] ?? '' }}</td>
         <td>RES-{{ $dato['reserva']['id'] ?? '' }}</td>
         <td>{{ isset($dato['cliente']['nombre']) ? $dato['cliente']['nombre'].' '.$dato['cliente']['apellido'] : '' }}</td>
@@ -88,7 +91,7 @@
             Editar
           </button>
 
-          <button class="btn btn-pdf">PDF</button>
+          <button type="button" class="btn btn-pdf" data-ruta-pdf="{{ route('pdf.pago') }}" data-id="{{ $dato['id'] }}">PDF</button>
 
           <button class="btn btn-cancelar btn-abrir-eliminar"
             data-id-eliminar="{{ $dato['id'] ?? '' }}">

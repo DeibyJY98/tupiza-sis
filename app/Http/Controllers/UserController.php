@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
+use App\Http\Controllers\Concerns\ExportaPdf;
 use App\Models\Rol;
 use App\Models\Persona;
 use App\Models\User;
@@ -11,6 +11,8 @@ use Illuminate\Validation\ValidationException;
 
 class UserController extends Controller
 {
+  use ExportaPdf;
+
   public function index(){
     $datos = User::get();       
     $datos = $datos->map->toShow();
@@ -98,8 +100,32 @@ class UserController extends Controller
 
   public function destroy(Request $request){
     $datos= User::find($request->id);
-    $datos->delete();
+    $datos->update(['estado' => 0]);
     return redirect()->route('mostrar.usuario');
+  }
+
+  public function exportarPdf(Request $request)
+  {
+    $consulta = User::with('rol');
+
+    if ($request->filled('ids')) {
+      $consulta->whereIn('id', $request->input('ids'));
+    }
+
+    $filas = $consulta->get()->map(fn (User $user) => [
+      $user->id,
+      $user->username,
+      $user->email,
+      optional($user->rol)->nombre,
+      $user->estado == 1 ? 'Activo' : 'Inactivo',
+    ])->all();
+
+    return $this->generarPdf(
+      'Reporte de Usuarios',
+      ['ID', 'Username', 'Email', 'Rol', 'Estado'],
+      $filas,
+      'usuarios.pdf'
+    );
   }
 
   public function indexStore(){

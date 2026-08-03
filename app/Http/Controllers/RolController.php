@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\ExportaPdf;
 use App\Models\Rol;
 use Illuminate\Http\Request;
-use Illuminate\validation\ValidationException;
+use Illuminate\Validation\ValidationException;
 
 class RolController extends Controller
 {
+    use ExportaPdf;
+
     public function index()
     {
         $datos = Rol::get();       
@@ -83,7 +86,29 @@ class RolController extends Controller
     public function destroy(Request $request)
     {
         $datos= Rol::find($request->id);
-        $datos->delete();
+        $datos->update(['estado' => 0]);
         return redirect()->route('mostrar.rol');
+    }
+
+    public function exportarPdf(Request $request)
+    {
+        $consulta = Rol::query();
+
+        if ($request->filled('ids')) {
+            $consulta->whereIn('id', $request->input('ids'));
+        }
+
+        $filas = $consulta->get()->map(fn (Rol $rol) => [
+            $rol->id,
+            $rol->nombre,
+            $rol->estado == 1 ? 'Activo' : 'Inactivo',
+        ])->all();
+
+        return $this->generarPdf(
+            'Reporte de Roles',
+            ['ID', 'Nombre', 'Estado'],
+            $filas,
+            'roles.pdf'
+        );
     }
 }

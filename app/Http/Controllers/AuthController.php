@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\Request;
 
 class AuthController extends Controller
@@ -50,24 +49,27 @@ class AuthController extends Controller
 
         $credentials = $request->only('username', 'password');
 
-        if (Auth::guard($guard)->attempt($credentials)){ 
-            // Guardar el usuario completo en cache
-            Cache::put('persona', $user);
+        if (Auth::guard($guard)->attempt($credentials)){
+            // Recordar con qué guard inició sesión, para poder resolverlo en middlewares/vistas
+            $request->session()->put('auth_guard', $guard);
 
-            //return redirect()->route('i.rol')->with(compact('guard'));
             return redirect()->route('mostrar.reserva');
         }
         else
         {
             return back()->with('password', 'la constraseña es incorrecta');
-        }       
+        }
 
     }
-    
-    public function logout()
+
+    public function logout(Request $request)
     {
-        Cache::forget('persona');
-      
+        $guard = $request->session()->get('auth_guard', 'web');
+        Auth::guard($guard)->logout();
+
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
         return redirect()->route('welcome');
     }
 }

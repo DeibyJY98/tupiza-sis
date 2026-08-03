@@ -2,13 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\ExportaPdf;
 use App\Models\Habitacion;
 use App\Models\TipoHabitacion;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class HabitacionController extends Controller
 {
+  use ExportaPdf;
+
   public function index()
   {
     $datos = Habitacion::all()->map->toShow();
@@ -92,8 +96,32 @@ class HabitacionController extends Controller
   {        
     $datos= Habitacion::find($request->inputIdEliminar);
     $datos->delete();
-    
+
     return redirect()->route('mostrar.habitacion');
+  }
+
+  public function exportarPdf(Request $request)
+  {
+    $consulta = Habitacion::with('tipoHabitacion');
+
+    if ($request->filled('ids')) {
+      $consulta->whereIn('id', $request->input('ids'));
+    }
+
+    $filas = $consulta->get()->map(fn (Habitacion $habitacion) => [
+      $habitacion->id,
+      $habitacion->numero_habitacion,
+      optional($habitacion->tipoHabitacion)->nombre ?? 'Sin tipo',
+      $habitacion->planta,
+      $habitacion->estado == 1 ? 'Disponible' : 'No disponible',
+    ])->all();
+
+    return $this->generarPdf(
+      'Reporte de Habitaciones',
+      ['ID', 'Número', 'Tipo', 'Planta', 'Estado'],
+      $filas,
+      'habitaciones.pdf'
+    );
   }
 
   private $rules = [
