@@ -13,6 +13,7 @@ use App\Models\ServicioExtra;
 use App\Services\ReservaService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 
 class ReservaController extends Controller
@@ -25,10 +26,11 @@ class ReservaController extends Controller
     $trabajadores = Trabajador::get();
     $clientes = Cliente::get();
     $serviciosExtras = ServicioExtra::where('estado', 1)->get();
+    $trabajadorActual = $this->trabajadorDelUsuarioActual();
 
     $datos = $datos->map->toShow();
 
-    return view("reserva.index",compact('datos','clientes','trabajadores','habitaciones','serviciosExtras'));
+    return view("reserva.index",compact('datos','clientes','trabajadores','habitaciones','serviciosExtras','trabajadorActual'));
   }
 
   protected $reservaService;
@@ -37,15 +39,35 @@ class ReservaController extends Controller
       $this->reservaService = $reservaService;
   }
 
+  // El usuario logueado se identifica como trabajador a través de su persona
+  // (id_persona). Si el rol actual no tiene un trabajador asociado (ej. un cliente
+  // gestionando su propia reserva) devuelve null y el formulario recae en la
+  // selección manual de siempre.
+  private function trabajadorDelUsuarioActual(): ?Trabajador
+  {
+    $usuario = Auth::guard(session('auth_guard'))->user();
+
+    if (!$usuario || !$usuario->id_persona) {
+      return null;
+    }
+
+    return Trabajador::where('id_persona', $usuario->id_persona)->first();
+  }
+
   public function store(Request $request){
     try {
+      // Si el usuario logueado tiene un trabajador asociado, ese id manda siempre
+      // (no se confía en lo que llegue del formulario); si no, se exige la
+      // selección manual de siempre.
+      $trabajadorSesion = $this->trabajadorDelUsuarioActual();
+
       $request->validate([
         //'id' => 'required|string|max:255|unique:reservas,id',
         'costo_total' => 'required|numeric|min:0',
         'fecha_inicio' => 'required|date',
         'fecha_fin' => 'required|date|after_or_equal:fecha_inicio',
         'estado' => 'required|numeric',
-        'id_trabajador' => 'required|exists:trabajadors,id',
+        'id_trabajador' => $trabajadorSesion ? 'nullable|exists:trabajadors,id' : 'required|exists:trabajadors,id',
         'id_cliente' => 'required|exists:clientes,id',
         'id_habitacion' => 'required|exists:habitacions,id',
         'servicios_extra' => 'sometimes|array',
@@ -58,13 +80,13 @@ class ReservaController extends Controller
           $request->input('fecha_inicio'),
           $request->input('fecha_fin')
       );
-    
+
       $nuevo = [
         'costo_total' => $request->input('costo_total'),
         'fecha_inicio' => $request->input('fecha_inicio'),
         'fecha_fin' => $request->input('fecha_fin'),
         'estado' => $request->input('estado'),
-        'id_trabajador' => $request->input('id_trabajador'),
+        'id_trabajador' => $trabajadorSesion->id ?? $request->input('id_trabajador'),
         'id_cliente' => $request->input('id_cliente')
       ];
 

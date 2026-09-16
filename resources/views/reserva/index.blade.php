@@ -175,13 +175,17 @@
 
       <div class="campo-form">
         <label>Trabajador:</label>
-        <select name="id_trabajador" required>
-          <option value="">-- Seleccione un trabajador --</option>
-          @foreach ($trabajadores as $trab)
-            <option value="{{ $trab['id'] }}">{{ optional($trab->persona)->nombre }} {{ optional($trab->persona)->apellido }}</option>
-          @endforeach
-        </select>
-      </div> 
+        @if ($trabajadorActual)
+          <input type="text" value="{{ optional($trabajadorActual->persona)->nombre }} {{ optional($trabajadorActual->persona)->apellido }} (tú)" disabled>
+        @else
+          <select name="id_trabajador" required>
+            <option value="">-- Seleccione un trabajador --</option>
+            @foreach ($trabajadores as $trab)
+              <option value="{{ $trab['id'] }}">{{ optional($trab->persona)->nombre }} {{ optional($trab->persona)->apellido }}</option>
+            @endforeach
+          </select>
+        @endif
+      </div>
 
       <div class="campo-form">
         <label>Cliente:</label>
