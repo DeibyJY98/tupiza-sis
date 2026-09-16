@@ -93,3 +93,27 @@ it('el permiso "permiso" (aunque no tenga el id 2) da acceso a /permiso y no a /
     $response->assertSessionHas('autorizacion');
     $response->assertStatus(302);
 });
+
+// Regresión: el middleware sí guardaba el mensaje "No tiene permiso" en la sesión y
+// redirigía con back(), pero ninguna vista de las 12 (salvo Rol y Usuario, de forma
+// duplicada) llegó a imprimir session('autorizacion') en el HTML. El usuario terminaba
+// en la página anterior sin ver ningún aviso. Ahora se imprime una sola vez en el layout
+// compartido, así que cualquier página a la que "vuelva" el back() lo muestra.
+it('muestra en pantalla el aviso de "sin permiso" en la página a la que se regresa', function () {
+    $permisoPersona = Permiso::create(['nombre' => 'persona']);
+    Permiso::create(['nombre' => 'rol']);
+
+    $rol = crearRol('solo_persona');
+    DetalleRol::create(['id_rol' => $rol->id, 'id_permiso' => $permisoPersona->id]);
+
+    [$user, $password] = crearUsuarioConRol($rol, 'solo_persona1');
+    $this->post('/login', ['username' => $user->username, 'password' => $password]);
+
+    // Simula haber estado en /persona (que sí tiene permiso) y desde ahí intentar /rol.
+    $intento = $this->from('/persona')->get('/rol');
+    $intento->assertRedirect('/persona');
+
+    $paginaDestino = $this->get('/persona');
+    $paginaDestino->assertOk();
+    $paginaDestino->assertSee('No tiene permiso para ingresar');
+});

@@ -69,13 +69,9 @@
           <td>Piso {{ $dato['planta'] }}</td>   
           <td>
               @if ($dato['estado'] == 1)
-                  <span style="color: #22c55e; border: 2px solid #22c55e; background-color: transparent; padding: 5% 10%;">
-                      Disponible
-                  </span>
+                  <span class="badge-estado activo">Disponible</span>
               @else
-                  <span style="color: #ef4444; border: 2px solid #ef4444; background-color: transparent; padding: 5%;">
-                      No disponible
-                  </span>
+                  <span class="badge-estado inactivo">No disponible</span>
               @endif    
           </td>   
           <td class="acciones">
@@ -267,15 +263,9 @@
               );
 
               if (hayFechaOcupada) {
-                  estadoCell.innerHTML = `
-                      <span style="color: #ef4444; border: 2px solid #ef4444; background-color: transparent; padding: 5%;">
-                          No disponible
-                      </span>`;
+                  estadoCell.innerHTML = '<span class="badge-estado inactivo">No disponible</span>';
               } else {
-                  estadoCell.innerHTML = `
-                      <span style="color: #22c55e; border: 2px solid #22c55e; background-color: transparent; padding: 5% 10%;">
-                          Disponible
-                      </span>`;
+                  estadoCell.innerHTML = '<span class="badge-estado activo">Disponible</span>';
               }
           } catch (error) {
               console.error('Error al verificar disponibilidad:', error);

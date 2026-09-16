@@ -113,6 +113,10 @@
 
     <section class="hero">
       <div class="hero-content">
+          @if (session('autorizacion'))
+              <div class="alerta-error">{{ session('autorizacion') }}</div>
+          @endif
+
           @yield('contenido')
       </div>
     </section>
