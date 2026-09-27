@@ -14,6 +14,7 @@ use App\Services\ReservaService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class ReservaController extends Controller
@@ -62,11 +63,11 @@ class ReservaController extends Controller
       $trabajadorSesion = $this->trabajadorDelUsuarioActual();
 
       $request->validate([
-        //'id' => 'required|string|max:255|unique:reservas,id',
-        'costo_total' => 'required|numeric|min:0',
+        // El costo ya no se confía al formulario: se recalcula en el servidor.
+        'costo_total' => 'nullable|numeric|min:0',
         'fecha_inicio' => 'required|date',
         'fecha_fin' => 'required|date|after_or_equal:fecha_inicio',
-        'estado' => 'required|numeric',
+        'estado' => 'required|numeric|in:0,1',
         'id_trabajador' => $trabajadorSesion ? 'nullable|exists:trabajadors,id' : 'required|exists:trabajadors,id',
         'id_cliente' => 'required|exists:clientes,id',
         'id_habitacion' => 'required|exists:habitacions,id',
@@ -74,65 +75,70 @@ class ReservaController extends Controller
         'servicios_extra.*' => 'exists:servicio_extras,id',
       ], $this->rules);
 
-      // Validar disponibilidad de la habitación
-      $this->reservaService->validarDisponibilidadHabitacion(
-          $request->input('id_habitacion'),
-          $request->input('fecha_inicio'),
-          $request->input('fecha_fin')
-      );
+      $idsServiciosExtra = $request->input('servicios_extra', []) ?? [];
 
-      $nuevo = [
-        'costo_total' => $request->input('costo_total'),
-        'fecha_inicio' => $request->input('fecha_inicio'),
-        'fecha_fin' => $request->input('fecha_fin'),
-        'estado' => $request->input('estado'),
-        'id_trabajador' => $trabajadorSesion->id ?? $request->input('id_trabajador'),
-        'id_cliente' => $request->input('id_cliente')
-      ];
+      // Todo el registro (validar solapamiento con bloqueo + reserva + habitación +
+      // servicios extras) ocurre en UNA transacción: si algo falla, no queda una
+      // reserva "huérfana" sin habitación ni costo mal calculado.
+      DB::transaction(function () use ($request, $trabajadorSesion, $idsServiciosExtra) {
+        // Valida solapamiento con bloqueo sobre la habitación (evita que dos
+        // reservas concurrentes se crucen)
+        $this->reservaService->validarDisponibilidadHabitacion(
+            $request->input('id_habitacion'),
+            $request->input('fecha_inicio'),
+            $request->input('fecha_fin')
+        );
 
-      $nuevo = Reserva::create($nuevo);
-      // si se envía una habitación, crear la relación en la tabla pivot
-      if ($request->filled('id_habitacion')) {
-        try {
-          $habitacionReserva = HabitacionReserva::create([
-            'monto' => $nuevo->costo_total ?? 0,
-            'id_reserva' => $nuevo->id,
-            'id_habitacion' => $request->input('id_habitacion'),
+        // Costo total recalculado en el servidor (nunca el que llegó del formulario)
+        $costoTotal = $this->reservaService->calcularCostoTotal(
+            $request->input('id_habitacion'),
+            $request->input('fecha_inicio'),
+            $request->input('fecha_fin'),
+            $idsServiciosExtra
+        );
+
+        $nuevo = Reserva::create([
+          'costo_total' => $costoTotal,
+          'fecha_inicio' => $request->input('fecha_inicio'),
+          'fecha_fin' => $request->input('fecha_fin'),
+          'estado' => $request->input('estado'),
+          'id_trabajador' => $trabajadorSesion->id ?? $request->input('id_trabajador'),
+          'id_cliente' => $request->input('id_cliente')
         ]);
 
-          foreach ($request->input('servicios_extra', []) as $idServicioExtra) {
-            HabitacionServicioExtra::create([
-              'id_habitacion_reserva' => $habitacionReserva->id,
-              'id_servicio_extra' => $idServicioExtra,
-            ]);
-          }
+        $habitacionReserva = HabitacionReserva::create([
+          'monto' => $costoTotal,
+          'id_reserva' => $nuevo->id,
+          'id_habitacion' => $request->input('id_habitacion'),
+        ]);
+
+        foreach ($idsServiciosExtra as $idServicioExtra) {
+          HabitacionServicioExtra::create([
+            'id_habitacion_reserva' => $habitacionReserva->id,
+            'id_servicio_extra' => $idServicioExtra,
+          ]);
         }
-        catch (\Exception $e) {
-          // no detener el flujo por un error en el pivot; loguear y continuar
-          return back()->with('error', $e->getMessage());
-        }
-      }
-        
-    } 
+      });
+    }
     catch(ValidationException $e){
         $mensajes = collect($e->errors())->flatten()->join(' ');
-      
+
         return back()->with('error', $mensajes);
     }
     catch (\Exception $e) {
         return back()->with('error', $e->getMessage());
     }
 
-    return redirect()->route('mostrar.reserva');
+    return redirect()->route('mostrar.reserva')->with('success', 'Reserva registrada correctamente');
   }
 
   public function update(Request $request){
       try {
-          $modificar = $request->validate([      
-              'costo_total' => 'sometimes|numeric|min:0',
+          $modificar = $request->validate([
+              'costo_total' => 'nullable|numeric|min:0', // se recalcula en el servidor
               'fecha_inicio' => 'sometimes|date',
               'fecha_fin' => 'sometimes|date|after_or_equal:fecha_inicio',
-              'estado' => 'sometimes|numeric',
+              'estado' => 'sometimes|numeric|in:0,1',
               'id_trabajador' => 'sometimes|exists:trabajadors,id',
               'id_cliente' => 'sometimes|exists:clientes,id',
               'id_habitacion' => 'sometimes|exists:habitacions,id',
@@ -141,7 +147,7 @@ class ReservaController extends Controller
           ], $this->rules);
 
           $dato = Reserva::where('id', $request->id)->first();
-          
+
           if (!$dato) {
               return response()->json([
                   'success' => false,
@@ -150,45 +156,73 @@ class ReservaController extends Controller
           }
 
           try {
-              if ($request->has('id_habitacion') && ($request->has('fecha_inicio') || $request->has('fecha_fin'))) {
-                  $this->reservaService->validarDisponibilidadHabitacion(
-                      $request->input('id_habitacion'),
-                      $request->input('fecha_inicio'),
-                      $request->input('fecha_fin'),
-                      $request->input('id')
-                  );
-              }
-              
-              $dato->update($modificar);
-              // sincronizar habitación: eliminar relaciones previas y crear nueva si se envía id_habitacion
-              if ($request->has('id_habitacion')) {
-                  HabitacionReserva::where('id_reserva', $dato->id)->delete();
-                  $habitacionReserva = HabitacionReserva::create([
-                      'monto' => $modificar['costo_total'] ?? $dato->costo_total ?? 0,
-                      'id_reserva' => $dato->id,
-                      'id_habitacion' => $request->input('id_habitacion'),
-                  ]);
+              DB::transaction(function () use ($request, $dato, &$modificar) {
+                  // Habitación efectiva: la enviada en el formulario o, si no se envió,
+                  // la que la reserva ya tiene asociada
+                  $idHabitacion = $request->input('id_habitacion')
+                      ?: $dato->habitacionReservas()->value('id_habitacion');
 
-                  foreach ($request->input('servicios_extra', []) as $idServicioExtra) {
-                      HabitacionServicioExtra::create([
-                          'id_habitacion_reserva' => $habitacionReserva->id,
-                          'id_servicio_extra' => $idServicioExtra,
-                      ]);
+                  // Si cambian fechas o habitación, validar solapamiento con bloqueo
+                  if ($request->hasAny(['fecha_inicio', 'fecha_fin', 'id_habitacion'])) {
+                      $this->reservaService->validarDisponibilidadHabitacion(
+                          $idHabitacion,
+                          $request->input('fecha_inicio', $dato->fecha_inicio),
+                          $request->input('fecha_fin', $dato->fecha_fin),
+                          $dato->id
+                      );
                   }
-              }
+
+                  // Si cambian fechas, habitación o servicios, recalcular el costo en el servidor
+                  if ($request->hasAny(['fecha_inicio', 'fecha_fin', 'id_habitacion', 'servicios_extra'])) {
+                      $idsServiciosExtra = $request->has('servicios_extra')
+                          ? $request->input('servicios_extra', [])
+                          : $dato->habitacionReservas->flatMap->serviciosExtras->pluck('id')->all();
+
+                      $modificar['costo_total'] = $this->reservaService->calcularCostoTotal(
+                          $idHabitacion,
+                          $request->input('fecha_inicio', $dato->fecha_inicio),
+                          $request->input('fecha_fin', $dato->fecha_fin),
+                          $idsServiciosExtra
+                      );
+                  }
+
+                  $dato->update($modificar);
+
+                  if ($request->has('id_habitacion')) {
+                      // sincronizar habitación: eliminar relaciones previas y crear nueva
+                      HabitacionReserva::where('id_reserva', $dato->id)->delete();
+
+                      $habitacionReserva = HabitacionReserva::create([
+                          'monto' => $modificar['costo_total'] ?? $dato->costo_total,
+                          'id_reserva' => $dato->id,
+                          'id_habitacion' => $request->input('id_habitacion'),
+                      ]);
+
+                      foreach ($request->input('servicios_extra', []) as $idServicioExtra) {
+                          HabitacionServicioExtra::create([
+                              'id_habitacion_reserva' => $habitacionReserva->id,
+                              'id_servicio_extra' => $idServicioExtra,
+                          ]);
+                      }
+                  } elseif ($request->hasAny(['fecha_inicio', 'fecha_fin'])) {
+                      // Sin cambio de habitación pero con fechas nuevas: actualizar el monto del pivot
+                      HabitacionReserva::where('id_reserva', $dato->id)
+                          ->update(['monto' => $modificar['costo_total'] ?? $dato->costo_total]);
+                  }
+              });
 
               return response()->json([
                   'success' => true,
                   'message' => 'Reserva actualizada correctamente'
               ]);
-          } 
+          }
           catch (\Exception $e) {
               return response()->json([
                   'success' => false,
                   'message' => $e->getMessage()
               ]);
           }
-      } 
+      }
       catch(ValidationException $e){
           $mensajes = collect($e->errors())->flatten()->join(' ');
           return response()->json([

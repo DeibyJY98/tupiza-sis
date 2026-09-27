@@ -275,7 +275,7 @@
 
       <div class="campo-form">
         <label>Costo total:</label>
-        <input type="number" name="costo_total" id="edit_costo_total" step="0.01" required>
+        <input type="number" name="costo_total" id="edit_costo_total" step="0.01" required readonly title="Se recalcula automáticamente en el servidor a partir de la habitación, las fechas y los servicios extras">
       </div>
 
       <div class="campo-form">
