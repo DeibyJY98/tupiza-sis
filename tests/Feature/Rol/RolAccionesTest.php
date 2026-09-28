@@ -28,6 +28,54 @@ it('crea un rol a través del modal (POST directo, sin página intermedia)', fun
     $response->assertRedirect(route('mostrar.rol'));
 });
 
+it('el modal de crear/editar rol incluye el selector de permisos', function () {
+    $response = $this->get('/rol');
+
+    $response->assertOk();
+    $response->assertSee('id="permisosCrear"', false);
+    $response->assertSee('id="permisosEditar"', false);
+    $response->assertSee('name="permisos[]"', false);
+});
+
+it('crea un rol con los permisos seleccionados', function () {
+    $permisoA = Permiso::where('nombre', 'reserva')->firstOrFail();
+    $permisoB = Permiso::where('nombre', 'pago')->firstOrFail();
+
+    $response = $this->post('/rol/crear', [
+        'nombre' => 'rol_' . rand(1, 999),
+        'estado' => 1,
+        'permisos' => [$permisoA->id, $permisoB->id],
+    ]);
+
+    $response->assertRedirect(route('mostrar.rol'));
+    $rol = Rol::where('nombre', 'like', 'rol_%')->latest('id')->firstOrFail();
+    expect($rol->permisos->pluck('id')->sort()->values()->all())
+        ->toBe(collect([$permisoA->id, $permisoB->id])->sort()->values()->all());
+});
+
+it('editar un rol sincroniza los permisos: agrega los nuevos y revoca los desmarcados', function () {
+    $rol = Rol::where('nombre', 'recepcionista')->firstOrFail(); // sembrado con permisos 4-12
+    $permisoAAgregar = Permiso::where('nombre', 'permiso')->firstOrFail(); // id 1, no lo tiene
+    $permisoAQuitar = Permiso::where('nombre', 'pago')->firstOrFail(); // id 12, sí lo tiene
+
+    $idsFinales = $rol->permisos->pluck('id')
+        ->reject(fn ($id) => $id === $permisoAQuitar->id)
+        ->push($permisoAAgregar->id)
+        ->values()
+        ->all();
+
+    $response = $this->post('/rol/modificarPost', [
+        'id' => $rol->id,
+        'nombre' => $rol->nombre,
+        'estado' => $rol->estado,
+        'permisos' => $idsFinales,
+    ]);
+
+    $response->assertRedirect(route('mostrar.rol'));
+    $idsResultantes = $rol->permisos()->get()->pluck('id')->sort()->values()->all();
+    expect($idsResultantes)->toBe(collect($idsFinales)->sort()->values()->all());
+});
+
 it('el listado de roles trae el modal de confirmación para eliminar', function () {
     $response = $this->get('/rol');
 

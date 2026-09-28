@@ -21,6 +21,28 @@ it('autentica con el guard correspondiente al rol y guarda ese guard en la sesi�
     expect(Auth::guard('recepcionista')->check())->toBeFalse();
 });
 
+it('un rol nuevo sin guard propio (creado desde Gestión de Roles) puede iniciar sesión igual, con el guard genérico "web"', function () {
+    // administrador=1, recepcionista=2, cliente=3 ya existen en el orden de creación
+    // de este test; el 4to rol creado (cualquier nombre, ej. "Gerente") cae en el
+    // default del switch de AuthController::login() y antes de este fix era
+    // rechazado con "Rol de usuario no válido".
+    crearRol('administrador');
+    crearRol('recepcionista');
+    crearRol('cliente');
+    $rolNuevo = crearRol('Gerente');
+    [$user, $password] = crearUsuarioConRol($rolNuevo, 'gerente1');
+
+    $response = $this->post('/login', [
+        'username' => $user->username,
+        'password' => $password,
+    ]);
+
+    $response->assertRedirect(route('dashboard'));
+    expect(session('auth_guard'))->toBe('web');
+    expect(Auth::guard('web')->check())->toBeTrue();
+    expect(Auth::guard('web')->id())->toBe($user->id);
+});
+
 it('rechaza una contraseña incorrecta sin autenticar ningún guard', function () {
     $rolAdmin = crearRol('administrador');
     [$user] = crearUsuarioConRol($rolAdmin, 'admin1');

@@ -43,7 +43,15 @@ class AuthController extends Controller
                 $guard = 'cliente';
                 break;
             default:
-                return back()->with('errorUser', 'Rol de usuario no válido');
+                // Cualquier rol creado desde la UI (Gestión de Roles) no tiene un guard
+                // con su propio nombre en config/auth.php, así que se autentica con el
+                // guard genérico "web" en vez de bloquear el login. Ninguno de los guards
+                // nombrados tiene lógica propia en el resto de la app (todos comparten el
+                // mismo provider "users" y en todos lados solo se usa
+                // Auth::guard(session('auth_guard')) de forma genérica), así que esto no
+                // cambia nada para los roles que ya tenían su guard dedicado.
+                $guard = 'web';
+                break;
         }
         //dd( $user, $guard);
 

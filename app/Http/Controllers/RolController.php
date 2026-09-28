@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Concerns\ExportaPdf;
+use App\Models\DetalleRol;
+use App\Models\Permiso;
 use App\Models\Rol;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -14,8 +16,9 @@ class RolController extends Controller
     public function index()
     {
         $datos = Rol::with(['permisos', 'users.persona'])->get();
+        $permisos = Permiso::get();
 
-        return view("rol.index",compact('datos'));
+        return view("rol.index",compact('datos', 'permisos'));
     }
 
     public function store(Request $request)
@@ -23,11 +26,14 @@ class RolController extends Controller
        try {
             $request->validate([
                 'nombre' => 'required|string|max:15',
+                'permisos' => 'sometimes|array',
+                'permisos.*' => 'exists:permisos,id',
             ], [
                 'nombre.required' => 'El campo nombre es obligatorio.',
                 'nombre.string'   => 'El nombre debe ser una cadena de texto válida.',
                 'nombre.max'      => 'El nombre no puede tener más de 15 caracteres.',
-            ]);    
+                'permisos.*.exists' => 'Uno de los permisos seleccionados no existe.',
+            ]);
             // Asegurar que se establece un estado por defecto si no viene en la request
             $nuevo = [
                 'nombre' => $request->nombre,
@@ -35,7 +41,11 @@ class RolController extends Controller
             ];
 
             $nuevo = Rol::create($nuevo);
-       } 
+
+            foreach ($request->input('permisos', []) as $idPermiso) {
+                DetalleRol::create(['id_rol' => $nuevo->id, 'id_permiso' => $idPermiso]);
+            }
+       }
        catch(ValidationException $e){
             $mensajes = collect($e->errors())->flatten()->join(' ');
             return back()->with('error', $mensajes);
@@ -44,7 +54,7 @@ class RolController extends Controller
             return back()->with('error', $e->getMessage());
        }
 
-        return redirect()->route('mostrar.rol');
+        return redirect()->route('mostrar.rol')->with('success', 'Rol registrado correctamente.');
     }
 
     public function update(Request $request)
@@ -53,15 +63,34 @@ class RolController extends Controller
             $modificar = $request->validate([
                     'nombre' => 'required|string|max:15',
                     'estado' => 'sometimes|integer',
+                    'permisos' => 'sometimes|array',
+                    'permisos.*' => 'exists:permisos,id',
                 ], [
                     'nombre.required' => 'El campo nombre es obligatorio.',
                     'nombre.string'   => 'El nombre debe ser una cadena de texto válida.',
                     'nombre.max'      => 'El nombre no puede tener más de 15 caracteres.',
-                ]);  
+                    'permisos.*.exists' => 'Uno de los permisos seleccionados no existe.',
+                ]);
 
             $dato = Rol::find($request->id);
-            $dato->update($modificar);
-                } 
+            $dato->update(collect($modificar)->except('permisos')->all());
+
+            // El selector de permisos siempre se envía completo (aunque esté vacío), así
+            // que se sincroniza igual que servicios_extra en reservas: se revocan (soft
+            // delete) los que ya no están marcados y se crean los que son nuevos.
+            if ($request->has('permisos')) {
+                $idsNuevos = collect($request->input('permisos', []))->map(fn ($id) => (int) $id);
+                $idsActuales = DetalleRol::where('id_rol', $dato->id)->pluck('id_permiso');
+
+                DetalleRol::where('id_rol', $dato->id)
+                    ->whereNotIn('id_permiso', $idsNuevos)
+                    ->delete();
+
+                foreach ($idsNuevos->diff($idsActuales) as $idPermiso) {
+                    DetalleRol::create(['id_rol' => $dato->id, 'id_permiso' => $idPermiso]);
+                }
+            }
+                }
        catch(ValidationException $e){
             $mensajes = collect($e->errors())->flatten()->join(' ');
             return back()->with('error', $mensajes);
@@ -69,7 +98,7 @@ class RolController extends Controller
        catch (\Exception $e) {
             return back()->with('error', $e->getMessage());
        }
-        return redirect()->route('mostrar.rol');
+        return redirect()->route('mostrar.rol')->with('success', 'Rol actualizado correctamente.');
     }
 
     public function destroy(Request $request)

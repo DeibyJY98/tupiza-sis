@@ -80,7 +80,8 @@
           <button type="button" class="btn btn-edit btn-abrir-editar"
               data-id="{{ $dato->id }}"
               data-nombre="{{ $dato->nombre }}"
-              data-estado="{{ $dato->estado }}">
+              data-estado="{{ $dato->estado }}"
+              data-permisos="{{ $dato->permisos->pluck('id')->implode(',') }}">
               Editar
           </button>
 
@@ -117,6 +118,20 @@
                 <input type="number" name="estado" value="1" required>
             </div>
 
+            <div class="campo-form">
+                <label>Permisos:</label>
+                <div class="checkbox-group" id="permisosCrear">
+                    @forelse ($permisos as $permiso)
+                        <label class="checkbox-item">
+                            <input type="checkbox" name="permisos[]" value="{{ $permiso->id }}" class="permiso-check-crear">
+                            {{ $permiso->nombre }}
+                        </label>
+                    @empty
+                        <span class="checkbox-empty">No hay permisos registrados.</span>
+                    @endforelse
+                </div>
+            </div>
+
             <div class="modal-footer">
                 <button type="button" class="btn-cancelarM" id="cancelarModal">Cancelar</button>
                 <button type="submit" class="btn-guardar">Guardar</button>
@@ -145,6 +160,20 @@
             <div class="campo-form">
                 <label>Estado:</label>
                 <input type="number" name="estado" id="edit_estado" required>
+            </div>
+
+            <div class="campo-form">
+                <label>Permisos:</label>
+                <div class="checkbox-group" id="permisosEditar">
+                    @forelse ($permisos as $permiso)
+                        <label class="checkbox-item">
+                            <input type="checkbox" name="permisos[]" value="{{ $permiso->id }}" class="permiso-check-editar">
+                            {{ $permiso->nombre }}
+                        </label>
+                    @empty
+                        <span class="checkbox-empty">No hay permisos registrados.</span>
+                    @endforelse
+                </div>
             </div>
 
             <div class="modal-footer">
@@ -217,7 +246,10 @@
 <script>
     /* === Modal Crear === */
     const modalCrear = document.getElementById('modalCrear');
-    document.getElementById('abrirModalCrear').addEventListener('click', () => modalCrear.style.display = 'flex');
+    document.getElementById('abrirModalCrear').addEventListener('click', () => {
+        document.querySelectorAll('.permiso-check-crear').forEach(checkbox => checkbox.checked = false);
+        modalCrear.style.display = 'flex';
+    });
     document.getElementById('cerrarModalCrear').addEventListener('click', () => modalCrear.style.display = 'none');
     document.getElementById('cancelarModal').addEventListener('click', () => modalCrear.style.display = 'none');
 
@@ -246,6 +278,13 @@
             editId.value = boton.getAttribute('data-id');
             editNombre.value = boton.getAttribute('data-nombre');
             editEstado.value = boton.getAttribute('data-estado');
+
+            const idsPermisos = (boton.getAttribute('data-permisos') || '')
+                .split(',')
+                .filter(Boolean);
+            document.querySelectorAll('.permiso-check-editar').forEach(checkbox => {
+                checkbox.checked = idsPermisos.includes(checkbox.value);
+            });
 
             modalEditar.style.display = 'flex';
         });
