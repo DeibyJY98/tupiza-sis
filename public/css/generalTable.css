@@ -122,6 +122,7 @@ input, select {
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    text-decoration: none;
 }
 .btn.blue { background: #0284c7; color: white;}
 .btn.red { background: #dc2626;  color: white;}
@@ -380,7 +381,12 @@ tr:nth-child(even) {
    tiene aspect-ratio fijo: el alto se ajusta a la cantidad de reservas del día. */
 .calendario-grid {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    /* minmax(0, 1fr), no solo 1fr: por default una columna de grid no encoge por
+       debajo del ancho mínimo de su contenido. Como .calendario-dia-reserva usa
+       white-space: nowrap (para el ellipsis), una sola celda con texto largo
+       obligaba a su columna a quedarse ancha y le robaba espacio a las demás,
+       dejando el resto de los días angostos y disparejos. */
+    grid-template-columns: repeat(7, minmax(0, 1fr));
     gap: 6px;
     margin-top: 10px;
 }
@@ -487,5 +493,28 @@ tr:nth-child(even) {
     .pagination {
         justify-content: center;
         text-align: center;
+    }
+
+    /* Calendario de ocupación del mes: 7 columnas quedan demasiado angostas en
+       pantallas chicas para mostrar habitación + huésped + # de reserva. */
+    .calendario-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 4px;
+    }
+    .calendario-dia {
+        min-height: 46px;
+        padding: 4px;
+    }
+    .calendario-dia-numero {
+        font-size: 11px;
+    }
+    .calendario-dia-reserva {
+        font-size: 9px;
+    }
+}
+
+@media (max-width: 480px) {
+    .calendario-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 }

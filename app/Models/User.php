@@ -62,9 +62,12 @@ class User extends Authenticatable
             'email'     => $this->email,
             'foto'      => $this->foto,
             'estado'    => $this->estado,
+            'id_rol'    => $this->id_rol,
             'rol'       => $this->rol->nombre ?? null,
             'nombre'    => $this->persona->nombre ?? null,
-            'apellido'  => $this->persona->apellido ?? null
+            'apellido'  => $this->persona->apellido ?? null,
+            'cedula'    => $this->persona->cedula ?? null,
+            'celular'   => $this->persona->celular ?? null,
         ];
     }
 

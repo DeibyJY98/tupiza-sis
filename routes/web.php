@@ -31,27 +31,16 @@ Route::post("/notificaciones/marcar-leidas", [NotificacionController::class, 'ma
 //** PAGINA ROL **//
 Route::prefix('/rol')->middleware('permiso:rol')->group(function(){
     Route::get("/",[RolController::class,'index'])->name('mostrar.rol');
-    //crear nuevo rol
-    Route::get("/crear",[RolController::class,'indexStore'])->name('index.crear.rol');
     Route::post("/crear",[RolController::class,'store'])->name('crear.rol');
-
-    //modificar rol
-    Route::post("/modificar",[RolController::class,'indexUpdate'])->name('index.editar.rol');
     Route::post("/modificarPost",[RolController::class,'update'])->name('editar.rol');
-
     Route::post("/eliminar",[RolController::class,'destroy'])->name('eliminar.rol');
     Route::post("/pdf",[RolController::class,'exportarPdf'])->name('pdf.rol');
 });
 //** PAGINA USUARIO **//
 Route::prefix('/usuario')->middleware('userMiddleware')->group(function(){
     Route::get("/",[UserController::class,'index'])->name('mostrar.usuario');
-    //crear nuevo usuario
-    Route::get("/crear",[UserController::class,'indexStore'])->name('index.crear.usuario');
     Route::post("/crear",[UserController::class,'store'])->name('crear.usuario');
-    //modificar usuario
-    Route::post("/modificar",[UserController::class,'indexUpdate'])->name('index.editar.usuario');
     Route::post("/modificarPost",[UserController::class,'update'])->name('editar.usuario');
-
     Route::post("/eliminar",[UserController::class,'destroy'])->name('eliminar.usuario');
     Route::post("/pdf",[UserController::class,'exportarPdf'])->name('pdf.usuario');
 });

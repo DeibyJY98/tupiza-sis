@@ -14,10 +14,13 @@ class UserController extends Controller
   use ExportaPdf;
 
   public function index(){
-    $datos = User::get();       
+    $datos = User::get();
     $datos = $datos->map->toShow();
-      
-    return view("user.index",compact('datos'));
+
+    $roles = Rol::get();
+    $personas = Persona::get();
+
+    return view("user.index",compact('datos', 'roles', 'personas'));
   }
 
   public function store(Request $request){          
@@ -63,14 +66,17 @@ class UserController extends Controller
 
   public function update(Request $request){
     try {
+      $request->validate(['id' => 'required|exists:users,id'], $this->rules);
+
       $modificar = $request->validate([
-        'username' => 'sometimes|string|max:30|unique:users,username',
-        'email' => 'sometimes|email|unique:users,email',
+        'username' => 'sometimes|string|max:30|unique:users,username,' . $request->id,
+        'email' => 'sometimes|email|unique:users,email,' . $request->id,
         'password' => 'sometimes|string|min:5|max:50',
         'foto' => 'sometimes|image|mimes:jpg,jpeg,png|max:2048',
-        'id_rol' => 'sometimes|exists:rols,id',               
-        'id_persona' => 'sometimes|exists:personas,id',               
-      ], $this->rules);  
+        'id_rol' => 'sometimes|exists:rols,id',
+        'id_persona' => 'sometimes|exists:personas,id',
+        'estado' => 'sometimes|integer',
+      ], $this->rules);
 
       $dato = User::find($request->id);
 
@@ -126,20 +132,6 @@ class UserController extends Controller
       $filas,
       'usuarios.pdf'
     );
-  }
-
-  public function indexStore(){
-    $roles = Rol::get();
-    $personas = Persona::get();
-
-    return view('user.crear',compact('roles','personas'));
-  }
-
-  public function indexUpdate(Request $request){
-    $dato = User::find($request->id);
-    $roles = Rol::get();
-
-    return view('user.editar',compact('dato','roles'));
   }
 
   private $rules = [

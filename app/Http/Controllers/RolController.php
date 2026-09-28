@@ -13,20 +13,9 @@ class RolController extends Controller
 
     public function index()
     {
-        $datos = Rol::get();       
-        
+        $datos = Rol::with(['permisos', 'users.persona'])->get();
+
         return view("rol.index",compact('datos'));
-    }
-
-    public function indexStore(){
-        return view('rol.crear');
-    } 
-
-    public function indexUpdate(Request $request){
-
-        $dato = Rol::find($request->id);
-        
-        return view('rol.editar',compact('dato'));
     }
 
     public function store(Request $request)

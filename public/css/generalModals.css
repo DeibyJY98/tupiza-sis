@@ -136,18 +136,21 @@
     flex: 1 1 55%;
     min-width: 0;
 }
-.pago-comprobante {
+.pago-comprobante,
+.form-columna-imagen {
     flex: 1 1 45%;
     min-width: 0;
     display: flex;
     flex-direction: column;
 }
-.pago-comprobante label {
+.pago-comprobante label,
+.form-columna-imagen label {
     font-weight: bold;
     color: white;
     margin-bottom: 5px;
 }
-.pago-comprobante img {
+.pago-comprobante img,
+.form-columna-imagen img {
     width: 100%;
     border-radius: 8px;
     margin-top: 6px;

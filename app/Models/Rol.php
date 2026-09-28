@@ -25,4 +25,13 @@ class Rol extends Model
     {
         return $this->hasMany(User::class, 'id_rol');
     }
+
+    public function permisos()
+    {
+        // wherePivotNull('deleted_at'): detalle_rols tiene soft delete, igual que
+        // habitacion_reservas (ver Reserva::habitaciones()) — sin este filtro, un
+        // permiso revocado y reasignado quedaría duplicado.
+        return $this->belongsToMany(Permiso::class, 'detalle_rols', 'id_rol', 'id_permiso')
+                    ->wherePivotNull('deleted_at');
+    }
 }
