@@ -8,6 +8,8 @@ use App\Models\Reserva;
 use App\Models\Cliente;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class PagoController extends Controller
 {
@@ -15,14 +17,25 @@ class PagoController extends Controller
 
     public function index()
     {
-      $datos = Pago::get();
+      $datos = Pago::orderByDesc('created_at')->get();
       $datos = $datos->map->toShow();
 
-      // Cargar reservas y clientes para los selects en la vista
+      // Cargar reservas y clientes para los selects en la vista. $reservas (todas,
+      // sin filtrar) se usa en el modal de editar, para que la reserva ya asignada a
+      // un pago existente siga apareciendo aunque ya esté totalmente pagada.
       $reservas = Reserva::get();
       $clientes = Cliente::get();
 
-      return view("pago.index", compact('datos','reservas','clientes'));
+      // Para "Crear Pago": ordenadas de más reciente a más antigua, y sin las que ya
+      // tienen pagos completados por el total de la reserva (no queda saldo pendiente
+      // que registrar).
+      $reservasDisponibles = Reserva::orderByDesc('id')
+          ->withSum(['pagos as monto_pagado' => fn ($query) => $query->where('estado', 1)], 'monto')
+          ->get()
+          ->filter(fn (Reserva $reserva) => (float) ($reserva->monto_pagado ?? 0) < (float) $reserva->costo_total)
+          ->values();
+
+      return view("pago.index", compact('datos', 'reservas', 'clientes', 'reservasDisponibles'));
     }
 
     public function store(Request $request){
@@ -36,33 +49,47 @@ class PagoController extends Controller
           'id_reserva' => 'required|exists:reservas,id',
         ], $this->rules);
 
-        if ((int) $request->input('estado', 1) === 1) {
-          $this->validarSaldoPendiente($request->id_reserva, $request->monto);
-        }
+        $estadoNuevo = (int) $request->input('estado', 1);
 
+        // El comprobante se guarda antes de abrir la transacción: es I/O de
+        // archivos, no algo que deba revertirse junto con la fila de la BD.
         $ubicacion = null;
         if ($request->file('comprobante')) {
           $nombre ="RES-" . $request->id_reserva . "-" . time() . ".jpg";
           $ubicacion = "storage/" . $request->file('comprobante')->storeAs('comprobante', $nombre, 'public');
         }
 
-        $nuevo = [
-          "fecha" => $request->fecha,
-          "monto" => $request->monto,
-          "comprobante" => $ubicacion,
-          "id_reserva" => $request->id_reserva,
-          "id_cliente" => $request->id_cliente,
-          "estado" => $request->input('estado', 1),
-        ];
+        // P1.2: bloquea la reserva hasta el commit para que dos pagos concurrentes
+        // sobre la misma reserva no puedan validar el saldo pendiente al mismo
+        // tiempo y, juntos, superarlo.
+        DB::transaction(function () use ($request, $ubicacion, $estadoNuevo) {
+          Reserva::whereKey($request->id_reserva)->lockForUpdate()->firstOrFail();
 
-        $nuevo = Pago::create($nuevo);
-      } 
+          if ($estadoNuevo === 1) {
+            $this->validarSaldoPendiente($request->id_reserva, $request->monto);
+          }
+
+          $nuevo = Pago::create([
+            "fecha" => $request->fecha,
+            "monto" => $request->monto,
+            "comprobante" => $ubicacion,
+            "id_reserva" => $request->id_reserva,
+            "id_cliente" => $request->id_cliente,
+            "estado" => $estadoNuevo,
+          ]);
+
+          if ($estadoNuevo === 1) {
+            $this->confirmarReservaSiSaldoCubierto($nuevo->id_reserva);
+          }
+        });
+      }
       catch(ValidationException $e){
         $mensajes = collect($e->errors())->flatten()->join(' ');
         return back()->with('error', $mensajes);
       }
       catch (\Exception $e) {
-        return back()->with('error', $e->getMessage());
+        Log::error('Error al registrar el pago: ' . $e->getMessage(), ['exception' => $e]);
+        return back()->with('error', 'Ocurrió un error al registrar el pago. Intenta nuevamente.');
       }
 
       return redirect()->route('mostrar.pago');
@@ -90,33 +117,48 @@ class PagoController extends Controller
             $montoNuevo = $request->input('monto', $pago->monto);
             $estadoNuevo = (int) $request->input('estado', $pago->estado);
 
-            if ($estadoNuevo === 1) {
-                $this->validarSaldoPendiente($idReserva, $montoNuevo, excluirPago: $pago->id);
-            }
-
-            $modificar = [
-                'fecha' => $request->input('fecha', $pago->fecha),
-                'monto' => $request->input('monto', $pago->monto),
-                'estado' => $request->input('estado', $pago->estado),
-                'id_cliente' => $request->input('id_cliente', $pago->id_cliente),
-                'id_reserva' => $request->input('id_reserva', $pago->id_reserva),
-            ];
-
-            // Manejar subida de comprobante si se proporciona
+            // Manejar subida de comprobante si se proporciona (antes de la transacción)
+            $ubicacionNueva = null;
             if ($request->file('comprobante')) {
                 $nombre = "RES-" . $request->id_reserva . "-" . time() . ".jpg";
-                $ubicacion = "storage/" . $request->file('comprobante')->storeAs('comprobante', $nombre, 'public');
-                $modificar['comprobante'] = $ubicacion;
+                $ubicacionNueva = "storage/" . $request->file('comprobante')->storeAs('comprobante', $nombre, 'public');
             }
 
-            $pago->update($modificar);
-        } 
+            // P1.2: bloquea la reserva hasta el commit para que dos ediciones de pago
+            // concurrentes sobre la misma reserva no puedan superar el saldo juntas.
+            DB::transaction(function () use ($request, $pago, $idReserva, $montoNuevo, $estadoNuevo, $ubicacionNueva) {
+                Reserva::whereKey($idReserva)->lockForUpdate()->firstOrFail();
+
+                if ($estadoNuevo === 1) {
+                    $this->validarSaldoPendiente($idReserva, $montoNuevo, excluirPago: $pago->id);
+                }
+
+                $modificar = [
+                    'fecha' => $request->input('fecha', $pago->fecha),
+                    'monto' => $montoNuevo,
+                    'estado' => $estadoNuevo,
+                    'id_cliente' => $request->input('id_cliente', $pago->id_cliente),
+                    'id_reserva' => $idReserva,
+                ];
+
+                if ($ubicacionNueva) {
+                    $modificar['comprobante'] = $ubicacionNueva;
+                }
+
+                $pago->update($modificar);
+
+                if ($estadoNuevo === 1) {
+                    $this->confirmarReservaSiSaldoCubierto($idReserva);
+                }
+            });
+        }
         catch(ValidationException $e){
             $mensajes = collect($e->errors())->flatten()->join(' ');
             return back()->with('error', $mensajes);
         }
         catch (\Exception $e) {
-            return back()->with('error', $e->getMessage());
+            Log::error('Error al actualizar el pago: ' . $e->getMessage(), ['exception' => $e]);
+            return back()->with('error', 'Ocurrió un error al actualizar el pago. Intenta nuevamente.');
         }
 
         return redirect()->route('mostrar.pago')->with('success', 'Pago actualizado correctamente.');
@@ -133,7 +175,8 @@ class PagoController extends Controller
             }
             return redirect()->route('mostrar.pago')->with('error', 'El pago no existe.');
         } catch (\Exception $e) {
-            return back()->with('error', 'Error al eliminar el pago: ' . $e->getMessage());
+            Log::error('Error al eliminar el pago #' . $request->inputIdEliminar . ': ' . $e->getMessage(), ['exception' => $e]);
+            return back()->with('error', 'Ocurrió un error al eliminar el pago. Intenta nuevamente.');
         }
     }
 
@@ -182,6 +225,27 @@ class PagoController extends Controller
             throw ValidationException::withMessages([
                 'monto' => "El monto ({$monto}) excede el saldo pendiente de la reserva ({$saldoPendiente}).",
             ]);
+        }
+    }
+
+    /**
+     * P1.1: si los pagos "completados" de la reserva ya cubren su costo_total, la
+     * marca como 'confirmada'. Antes el estado del pago y el de la reserva no se
+     * hablaban entre sí. Solo actúa si la estadía sigue en 'pendiente': no
+     * retrocede una reserva que ya tiene check-in/check-out, ni una cancelada.
+     */
+    private function confirmarReservaSiSaldoCubierto($idReserva): void
+    {
+        $reserva = Reserva::find($idReserva);
+
+        if (!$reserva || $reserva->estado_estadia !== Reserva::ESTADIA_PENDIENTE) {
+            return;
+        }
+
+        $pagado = Pago::where('id_reserva', $idReserva)->where('estado', 1)->sum('monto');
+
+        if ($pagado >= $reserva->costo_total) {
+            $reserva->update(['estado_estadia' => Reserva::ESTADIA_CONFIRMADA]);
         }
     }
 

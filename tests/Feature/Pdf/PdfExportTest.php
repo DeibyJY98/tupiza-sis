@@ -47,7 +47,7 @@ it('genera el PDF de cada uno de los 12 módulos con datos reales de los seeders
     $this->seed();
 
     $this->post('/login', ['username' => 'DeibyJY', 'password' => '12345'])
-        ->assertRedirect(route('mostrar.reserva'));
+        ->assertRedirect(route('dashboard'));
 
     $response = $this->post($ruta);
 

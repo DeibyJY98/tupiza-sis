@@ -8,7 +8,7 @@ beforeEach(function () {
     $this->seed();
 
     $this->post('/login', ['username' => 'DeibyJY', 'password' => '12345'])
-        ->assertRedirect(route('mostrar.reserva'));
+        ->assertRedirect(route('dashboard'));
 });
 
 it('Persona: filtro de texto y estado, sin filtro de fecha', function () {

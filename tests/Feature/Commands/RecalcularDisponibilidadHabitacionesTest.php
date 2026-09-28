@@ -23,14 +23,20 @@ it('notifica el check-out de una reserva que termina hoy y libera la habitación
 
     $this->artisan('app:recalcular-disponibilidad-habitaciones')->assertExitCode(0);
 
-    expect(Notificacion::count())->toBe(1);
-    $notificacion = Notificacion::first();
-    expect($notificacion->tipo)->toBe('checkout');
-    expect($notificacion->id_reserva)->toBe($reserva->id);
-    expect($notificacion->id_habitacion)->toBe($habitacion->id);
-    expect($notificacion->leida)->toBeFalse();
-    expect($notificacion->mensaje)->toContain($habitacion->numero_habitacion);
+    // Dos notificaciones distintas: el aviso de "checkout" (la reserva termina hoy) y
+    // el "auto_checkout" (nadie hizo check-in/check-out, así que el comando cerró la
+    // reserva por su cuenta).
+    expect(Notificacion::count())->toBe(2);
+    $notificacionCheckout = Notificacion::where('tipo', 'checkout')->first();
+    expect($notificacionCheckout->id_reserva)->toBe($reserva->id);
+    expect($notificacionCheckout->id_habitacion)->toBe($habitacion->id);
+    expect($notificacionCheckout->leida)->toBeFalse();
+    expect($notificacionCheckout->mensaje)->toContain($habitacion->numero_habitacion);
 
+    $notificacionAutoCheckout = Notificacion::where('tipo', 'auto_checkout')->first();
+    expect($notificacionAutoCheckout->id_reserva)->toBe($reserva->id);
+
+    expect($reserva->fresh()->estado_estadia)->toBe(\App\Models\Reserva::ESTADIA_CHECK_OUT);
     expect($habitacion->fresh()->estado)->toBe(1); // disponible tras el check-out
 });
 
@@ -43,7 +49,9 @@ it('no duplica la notificación de check-out si el comando corre más de una vez
     $this->artisan('app:recalcular-disponibilidad-habitaciones');
     $this->artisan('app:recalcular-disponibilidad-habitaciones');
 
-    expect(Notificacion::count())->toBe(1);
+    // 1 de "checkout" + 1 de "auto_checkout": ninguna de las dos se duplica en la
+    // segunda corrida (el aviso de checkout ya existía; la reserva ya quedó check_out).
+    expect(Notificacion::count())->toBe(2);
 });
 
 it('no notifica antes de la hora de check-out aunque la reserva termine hoy', function () {

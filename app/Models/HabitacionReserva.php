@@ -29,8 +29,11 @@ class HabitacionReserva extends Model
 
     public function serviciosExtras()
     {
+        // Mismo caso que Reserva::habitaciones(): habitacion_servicio_extras también
+        // tiene soft delete, y belongsToMany no lo respeta por su cuenta en el JOIN.
         return $this->belongsToMany(ServicioExtra::class, 'habitacion_servicio_extras', 'id_habitacion_reserva', 'id_servicio_extra')
                     ->withTimestamps()
-                    ->withPivot(['created_at', 'updated_at', 'deleted_at']);
+                    ->withPivot(['created_at', 'updated_at', 'deleted_at'])
+                    ->wherePivotNull('deleted_at');
     }
 }

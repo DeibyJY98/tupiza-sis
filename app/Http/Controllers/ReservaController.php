@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\ReservaException;
 use App\Http\Controllers\Concerns\ExportaPdf;
 use App\Models\Reserva;
 use App\Models\Trabajador;
@@ -15,6 +16,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 class ReservaController extends Controller
@@ -22,7 +24,7 @@ class ReservaController extends Controller
   use ExportaPdf;
 
   public function index(){
-    $datos = Reserva::get();
+    $datos = Reserva::orderByDesc('created_at')->get();
     $habitaciones = Habitacion::get();
     $trabajadores = Trabajador::get();
     $clientes = Cliente::get();
@@ -125,8 +127,15 @@ class ReservaController extends Controller
 
         return back()->with('error', $mensajes);
     }
-    catch (\Exception $e) {
+    catch (ReservaException $e) {
+        // Mensaje de una regla de negocio propia: seguro para mostrar tal cual.
         return back()->with('error', $e->getMessage());
+    }
+    catch (\Exception $e) {
+        // Cualquier otra excepción (BD, etc.) no se muestra al usuario tal cual
+        // para no filtrar detalles internos; se registra para poder investigarla.
+        Log::error('Error al registrar la reserva: ' . $e->getMessage(), ['exception' => $e]);
+        return back()->with('error', 'Ocurrió un error al registrar la reserva. Intenta nuevamente.');
     }
 
     return redirect()->route('mostrar.reserva')->with('success', 'Reserva registrada correctamente');
@@ -162,13 +171,20 @@ class ReservaController extends Controller
                   $idHabitacion = $request->input('id_habitacion')
                       ?: $dato->habitacionReservas()->value('id_habitacion');
 
+                  // Solo se exige que fecha_inicio no sea pasada cuando de verdad está
+                  // cambiando: si únicamente se extiende fecha_fin de una reserva que ya
+                  // está en curso (fecha_inicio ya pasó y no se toca), no debe rechazarse.
+                  $fechaInicioCambio = $request->filled('fecha_inicio')
+                      && !Carbon::parse($request->input('fecha_inicio'))->isSameDay($dato->fecha_inicio);
+
                   // Si cambian fechas o habitación, validar solapamiento con bloqueo
                   if ($request->hasAny(['fecha_inicio', 'fecha_fin', 'id_habitacion'])) {
                       $this->reservaService->validarDisponibilidadHabitacion(
                           $idHabitacion,
                           $request->input('fecha_inicio', $dato->fecha_inicio),
                           $request->input('fecha_fin', $dato->fecha_fin),
-                          $dato->id
+                          $dato->id,
+                          $fechaInicioCambio
                       );
                   }
 
@@ -189,7 +205,7 @@ class ReservaController extends Controller
                   $dato->update($modificar);
 
                   if ($request->has('id_habitacion')) {
-                      // sincronizar habitación: eliminar relaciones previas y crear nueva
+                      // Cambia la habitación: se recrea el pivot completo (habitación + servicios extras)
                       HabitacionReserva::where('id_reserva', $dato->id)->delete();
 
                       $habitacionReserva = HabitacionReserva::create([
@@ -204,10 +220,28 @@ class ReservaController extends Controller
                               'id_servicio_extra' => $idServicioExtra,
                           ]);
                       }
-                  } elseif ($request->hasAny(['fecha_inicio', 'fecha_fin'])) {
-                      // Sin cambio de habitación pero con fechas nuevas: actualizar el monto del pivot
-                      HabitacionReserva::where('id_reserva', $dato->id)
-                          ->update(['monto' => $modificar['costo_total'] ?? $dato->costo_total]);
+                  } elseif ($request->hasAny(['fecha_inicio', 'fecha_fin', 'servicios_extra'])) {
+                      // Sin cambio de habitación: se actualiza el monto del pivot existente y,
+                      // si cambiaron los servicios extras, se vuelven a sincronizar ahí mismo
+                      // (antes solo se revisaban las fechas, así que editar nada más los
+                      // servicios extras no actualizaba ni el monto ni la asociación real).
+                      $idHabitacionReserva = $dato->habitacionReservas()->value('id');
+
+                      if ($idHabitacionReserva) {
+                          HabitacionReserva::whereKey($idHabitacionReserva)
+                              ->update(['monto' => $modificar['costo_total'] ?? $dato->costo_total]);
+
+                          if ($request->has('servicios_extra')) {
+                              HabitacionServicioExtra::where('id_habitacion_reserva', $idHabitacionReserva)->delete();
+
+                              foreach ($request->input('servicios_extra', []) as $idServicioExtra) {
+                                  HabitacionServicioExtra::create([
+                                      'id_habitacion_reserva' => $idHabitacionReserva,
+                                      'id_servicio_extra' => $idServicioExtra,
+                                  ]);
+                              }
+                          }
+                      }
                   }
               });
 
@@ -216,10 +250,17 @@ class ReservaController extends Controller
                   'message' => 'Reserva actualizada correctamente'
               ]);
           }
-          catch (\Exception $e) {
+          catch (ReservaException $e) {
               return response()->json([
                   'success' => false,
                   'message' => $e->getMessage()
+              ]);
+          }
+          catch (\Exception $e) {
+              Log::error('Error al actualizar la reserva #' . $request->id . ': ' . $e->getMessage(), ['exception' => $e]);
+              return response()->json([
+                  'success' => false,
+                  'message' => 'Ocurrió un error al actualizar la reserva. Intenta nuevamente.'
               ]);
           }
       }
@@ -231,14 +272,82 @@ class ReservaController extends Controller
           ]);
       }
       catch (\Exception $e) {
+          Log::error('Error al actualizar la reserva: ' . $e->getMessage(), ['exception' => $e]);
           return response()->json([
               'success' => false,
-              'message' => $e->getMessage()
+              'message' => 'Ocurrió un error al actualizar la reserva. Intenta nuevamente.'
           ]);
       }
   }
 
-  public function destroy(Request $request){        
+  // Solo se permite el día de la llegada, y no si ya se hizo check-in/check-out
+  // o si la reserva está cancelada.
+  public function checkIn($id)
+  {
+      try {
+          $reserva = Reserva::find($id);
+
+          if (!$reserva) {
+              throw new ReservaException('No se encontró la reserva.');
+          }
+
+          if ((int) $reserva->estado !== 1) {
+              throw new ReservaException('No se puede hacer check-in de una reserva cancelada.');
+          }
+
+          if (!Carbon::parse($reserva->fecha_inicio)->isToday()) {
+              throw new ReservaException('El check-in solo se puede registrar el día de llegada de la reserva.');
+          }
+
+          if (!in_array($reserva->estado_estadia, [Reserva::ESTADIA_PENDIENTE, Reserva::ESTADIA_CONFIRMADA], true)) {
+              throw new ReservaException('Esta reserva ya tiene un check-in registrado.');
+          }
+
+          $reserva->update(['estado_estadia' => Reserva::ESTADIA_CHECK_IN]);
+
+          return back()->with('success', 'Check-in registrado correctamente');
+      }
+      catch (ReservaException $e) {
+          return back()->with('error', $e->getMessage());
+      }
+      catch (\Exception $e) {
+          Log::error('Error al hacer check-in de la reserva #' . $id . ': ' . $e->getMessage(), ['exception' => $e]);
+          return back()->with('error', 'Ocurrió un error al procesar el check-in. Intenta nuevamente.');
+      }
+  }
+
+  // Requiere que ya se haya hecho check-in. Libera la habitación de inmediato,
+  // sin esperar al schedule diario de las 11am.
+  public function checkOut($id)
+  {
+      try {
+          $reserva = Reserva::find($id);
+
+          if (!$reserva) {
+              throw new ReservaException('No se encontró la reserva.');
+          }
+
+          if ($reserva->estado_estadia !== Reserva::ESTADIA_CHECK_IN) {
+              throw new ReservaException('Esta reserva no tiene un check-in registrado.');
+          }
+
+          $reserva->update(['estado_estadia' => Reserva::ESTADIA_CHECK_OUT]);
+
+          $habitacionReserva = HabitacionReserva::where('id_reserva', $reserva->id)->first();
+          $habitacionReserva?->habitacion?->actualizarDisponibilidad();
+
+          return back()->with('success', 'Check-out registrado correctamente');
+      }
+      catch (ReservaException $e) {
+          return back()->with('error', $e->getMessage());
+      }
+      catch (\Exception $e) {
+          Log::error('Error al hacer check-out de la reserva #' . $id . ': ' . $e->getMessage(), ['exception' => $e]);
+          return back()->with('error', 'Ocurrió un error al procesar el check-out. Intenta nuevamente.');
+      }
+  }
+
+  public function destroy(Request $request){
       try {
           $datos = Reserva::find($request->inputIdEliminar);
           if ($datos) {
@@ -248,40 +357,91 @@ class ReservaController extends Controller
           }
           return redirect()->route('mostrar.reserva')->with('success', 'Reserva eliminada correctamente');
       } catch (\Exception $e) {
-          return redirect()->route('mostrar.reserva')->with('error', 'Error al eliminar la reserva: ' . $e->getMessage());
+          Log::error('Error al eliminar la reserva #' . $request->inputIdEliminar . ': ' . $e->getMessage(), ['exception' => $e]);
+          return redirect()->route('mostrar.reserva')->with('error', 'Ocurrió un error al eliminar la reserva. Intenta nuevamente.');
       }
   }
 
   public function getFechasOcupadas($habitacion_id){
       try {
-          $fechasOcupadas = HabitacionReserva::where('id_habitacion', $habitacion_id)
+          $habitacionReservas = HabitacionReserva::where('id_habitacion', $habitacion_id)
               ->whereHas('reserva', function ($query) {
                   $query->where('estado', 1); // solo reservas activas
               })
-              ->with('reserva')
-              ->get()
+              ->with('reserva.cliente.persona')
+              ->get();
+
+          $fechasOcupadas = $habitacionReservas
               ->map(function ($hr) {
                   $fechas = [];
                   $inicio = Carbon::parse($hr->reserva->fecha_inicio);
                   $fin = Carbon::parse($hr->reserva->fecha_fin);
-                  
+
                   // Generar array con todas las fechas entre inicio y fin
                   for ($date = $inicio; $date->lte($fin); $date->addDay()) {
                       $fechas[] = $date->format('Y-m-d');
                   }
-                  
+
                   return $fechas;
               })
               ->flatten()
               ->unique()
               ->values();
 
+          // Detalle por reserva (P2.2: para mostrar huésped y # de reserva en el
+          // calendario del dashboard). Es aditivo: fechas_ocupadas no cambia, así que
+          // el formulario de reservas que ya consume este endpoint sigue funcionando igual.
+          $reservas = $habitacionReservas->map(function ($hr) {
+              $persona = optional(optional($hr->reserva->cliente)->persona);
+              $nombreCliente = trim(($persona->nombre ?? '') . ' ' . ($persona->apellido ?? '')) ?: 'Cliente';
+
+              return [
+                  'id_reserva' => $hr->reserva->id,
+                  'fecha_inicio' => Carbon::parse($hr->reserva->fecha_inicio)->format('Y-m-d'),
+                  'fecha_fin' => Carbon::parse($hr->reserva->fecha_fin)->format('Y-m-d'),
+                  'cliente' => $nombreCliente,
+              ];
+          })->values();
+
           return response()->json([
               'fechas_ocupadas' => $fechasOcupadas,
-              'fecha_minima' => Carbon::today()->format('Y-m-d')
+              'fecha_minima' => Carbon::today()->format('Y-m-d'),
+              'reservas' => $reservas,
           ]);
       } catch (\Exception $e) {
-          return response()->json(['error' => $e->getMessage()], 500);
+          Log::error('Error al obtener las fechas ocupadas de la habitación #' . $habitacion_id . ': ' . $e->getMessage(), ['exception' => $e]);
+          return response()->json(['error' => 'Ocurrió un error al consultar la disponibilidad.'], 500);
+      }
+  }
+
+  // P2.1: habitaciones libres para un rango de fechas dado, sin importar si hoy
+  // están ocupadas o no (una reserva futura no depende del estado de hoy).
+  public function habitacionesDisponibles(Request $request)
+  {
+      try {
+          $request->validate([
+              'desde' => 'required|date',
+              'hasta' => 'required|date|after_or_equal:desde',
+          ]);
+
+          $habitaciones = $this->reservaService->habitacionesDisponiblesEntre(
+              $request->input('desde'),
+              $request->input('hasta'),
+              $request->input('excluir_reserva')
+          );
+
+          return response()->json([
+              'habitaciones' => $habitaciones->map(fn (Habitacion $habitacion) => [
+                  'id' => $habitacion->id,
+                  'numero_habitacion' => $habitacion->numero_habitacion,
+                  'precio' => optional($habitacion->tipoHabitacion)->precio ?? 0,
+              ])->values(),
+          ]);
+      } catch (ValidationException $e) {
+          return response()->json(['error' => collect($e->errors())->flatten()->join(' ')], 422);
+      } catch (\Exception $e) {
+          Log::error('Error al consultar habitaciones disponibles: ' . $e->getMessage(), ['exception' => $e]);
+          return response()->json(['error' => 'Ocurrió un error al consultar la disponibilidad.'], 500);
       }
   }
 
@@ -303,14 +463,25 @@ class ReservaController extends Controller
       $reserva->habitaciones->pluck('numero_habitacion')->join(', '),
       $reserva->habitacionReservas->flatMap->serviciosExtras->pluck('nombre')->join(', '),
       $reserva->estado == 1 ? 'Completado' : 'Cancelado',
+      self::etiquetaEstadoEstadia($reserva->estado_estadia),
     ])->all();
 
     return $this->generarPdf(
       'Reporte de Reservas',
-      ['ID', 'Fecha Inicio', 'Fecha Fin', 'Costo Total', 'Trabajador', 'Cliente', 'Habitación(es)', 'Servicios Extra', 'Estado'],
+      ['ID', 'Fecha Inicio', 'Fecha Fin', 'Costo Total', 'Trabajador', 'Cliente', 'Habitación(es)', 'Servicios Extra', 'Estado', 'Estadía'],
       $filas,
       'reservas.pdf'
     );
+  }
+
+  public static function etiquetaEstadoEstadia(?string $estadoEstadia): string
+  {
+    return match ($estadoEstadia) {
+      Reserva::ESTADIA_CONFIRMADA => 'Confirmada',
+      Reserva::ESTADIA_CHECK_IN => 'Check-in',
+      Reserva::ESTADIA_CHECK_OUT => 'Check-out',
+      default => 'Pendiente',
+    };
   }
 
   private $rules = [

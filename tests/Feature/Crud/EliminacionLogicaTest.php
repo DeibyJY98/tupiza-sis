@@ -16,7 +16,7 @@ use App\Models\Pago;
 beforeEach(function () {
     $this->seed();
     $this->post('/login', ['username' => 'DeibyJY', 'password' => '12345'])
-        ->assertRedirect(route('mostrar.reserva'));
+        ->assertRedirect(route('dashboard'));
 });
 
 it('Persona: eliminar pone estado en 0 pero el registro sigue existiendo', function () {

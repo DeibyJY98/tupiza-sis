@@ -7,9 +7,20 @@
 
 body {
   display: flex;
+  flex-direction: column;
   background-color: #14161a;
   color: #fff;
-  height: 100vh;
+  min-height: 100vh;
+}
+
+/* Fila sidebar + contenido. Antes esto vivía directo en <body> con height: 100vh
+   fijo: si el contenido (una tabla larga, por ejemplo) crecía más que una
+   pantalla, el sidebar se quedaba "cortado" en esos 100vh mientras el contenido
+   seguía de largo debajo. Con min-height y este wrapper como flex:1, ambos
+   crecen juntos a la altura real del contenido. */
+.layout-body {
+  display: flex;
+  flex: 1;
 }
 
 /* Sidebar */
@@ -246,6 +257,15 @@ body {
 .chart-card h3 {
   margin-bottom: 15px;
   text-align: center;
+}
+
+.app-footer {
+  text-align: center;
+  padding: 14px;
+  color: #9ca3af;
+  font-size: 13px;
+  background-color: #1c1f26;
+  border-top: 1px solid #2a2d34;
 }
 
 /* ===== Mobile (<=768px): la sidebar pasa a ser un panel deslizante ===== */

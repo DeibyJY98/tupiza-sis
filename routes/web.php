@@ -15,6 +15,7 @@ use App\Http\Controllers\ServicioExtraController;
 use App\Http\Controllers\CaracteristicaController;
 use App\Http\Controllers\TipoHabitacionController;
 use App\Http\Controllers\NotificacionController;
+use App\Http\Controllers\DashboardController;
 
 //** PAGINA INICIAL **//
 Route::get('/', [AuthController::class, 'welcome'])->name('welcome');
@@ -23,6 +24,8 @@ Route::get("/login", [AuthController::class,'loginView'])->name('login');
 Route::post("/login",[AuthController::class,'login'])->name('sendLogin');
 //** PAGINA CERRAR **//
 Route::get("/logout",[AuthController::class,'logout'])->name('logout');
+//** DASHBOARD **//
+Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 //** NOTIFICACIONES **//
 Route::post("/notificaciones/marcar-leidas", [NotificacionController::class, 'marcarLeidas'])->name('notificaciones.marcar-leidas');
 //** PAGINA ROL **//
@@ -84,6 +87,9 @@ Route::prefix('/reserva')->middleware('permiso:reserva')->group(function(){
     Route::post("/eliminar",[ReservaController::class,'destroy'])->name('eliminar.reserva');
     Route::post("/pdf",[ReservaController::class,'exportarPdf'])->name('pdf.reserva');
     Route::get('/fechas-ocupadas/{habitacion_id}', [ReservaController::class, 'getFechasOcupadas'])->name('reserva.fechas-ocupadas');
+    Route::get('/habitaciones-disponibles', [ReservaController::class, 'habitacionesDisponibles'])->name('reserva.habitaciones-disponibles');
+    Route::post('/{id}/check-in', [ReservaController::class, 'checkIn'])->name('reserva.check-in');
+    Route::post('/{id}/check-out', [ReservaController::class, 'checkOut'])->name('reserva.check-out');
 });
 //** PAGINA PERSONA **//
 Route::prefix('/persona')->middleware('permiso:persona')->group(function(){

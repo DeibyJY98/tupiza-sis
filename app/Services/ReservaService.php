@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Exceptions\ReservaException;
 use App\Models\Habitacion;
 use App\Models\HabitacionReserva;
 use App\Models\ServicioExtra;
@@ -23,21 +24,28 @@ class ReservaService
      * hacerlo DENTRO de su propia DB::transaction y crear la reserva en esa misma
      * transacción. La transacción de aquí se anida como savepoint y el bloqueo se
      * mantiene hasta el commit externo.
+     *
+     * $validarFechaInicioPasada controla si se rechaza un fecha_inicio anterior a
+     * hoy. Debe ir en true al crear (una reserva nueva nunca empieza en el
+     * pasado) pero en false al editar una reserva en curso cuando fecha_inicio no
+     * cambió: de lo contrario, extender el fecha_fin de una estadía cuya llegada
+     * ya pasó se rechazaría por error.
      */
-    public function validarDisponibilidadHabitacion($idHabitacion, $fechaInicio, $fechaFin, $idReservaExcluir = null)
+    public function validarDisponibilidadHabitacion($idHabitacion, $fechaInicio, $fechaFin, $idReservaExcluir = null, bool $validarFechaInicioPasada = true)
     {
         $fechaInicio = Carbon::parse($fechaInicio);
         $fechaFin = Carbon::parse($fechaFin);
         $hoy = Carbon::today();
 
-        // Validar que la fecha de inicio no sea anterior a hoy
-        if ($fechaInicio->lt($hoy)) {
-            throw new \Exception('No se pueden realizar reservas en fechas pasadas.');
+        // Validar que la fecha de inicio no sea anterior a hoy (solo quien llama
+        // decide si aplica: ver doc del parámetro más arriba)
+        if ($validarFechaInicioPasada && $fechaInicio->lt($hoy)) {
+            throw new ReservaException('No se pueden realizar reservas en fechas pasadas.');
         }
 
         // Validar que la fecha de fin no sea anterior a la fecha de inicio
         if ($fechaFin->lt($fechaInicio)) {
-            throw new \Exception('La fecha de fin no puede ser anterior a la fecha de inicio.');
+            throw new ReservaException('La fecha de fin no puede ser anterior a la fecha de inicio.');
         }
 
         DB::transaction(function () use ($idHabitacion, $fechaInicio, $fechaFin, $idReservaExcluir) {
@@ -46,25 +54,50 @@ class ReservaService
             Habitacion::whereKey($idHabitacion)->lockForUpdate()->firstOrFail();
 
             $solapa = HabitacionReserva::where('id_habitacion', $idHabitacion)
-                ->whereHas('reserva', function ($query) use ($fechaInicio, $fechaFin, $idReservaExcluir) {
-                    $query->where('estado', 1) // Solo reservas activas
-                        // Solapamiento de rangos (límites inclusive: el día de
-                        // salida sigue bloqueado, igual que en el calendario del formulario)
-                        ->whereDate('fecha_inicio', '<=', $fechaFin->toDateString())
-                        ->whereDate('fecha_fin', '>=', $fechaInicio->toDateString());
-
-                    if ($idReservaExcluir) {
-                        $query->where('id', '!=', $idReservaExcluir);
-                    }
-                })
+                ->whereHas('reserva', fn ($query) => $this->aplicarFiltroSolapamiento($query, $fechaInicio, $fechaFin, $idReservaExcluir))
                 ->exists();
 
             if ($solapa) {
-                throw new \Exception('La habitación no está disponible para las fechas seleccionadas.');
+                throw new ReservaException('La habitación no está disponible para las fechas seleccionadas.');
             }
         });
 
         return true;
+    }
+
+    /**
+     * Condición de solapamiento de rangos (límites inclusive: el día de salida
+     * sigue bloqueado, igual que en el calendario del formulario), reutilizada
+     * por validarDisponibilidadHabitacion() y habitacionesDisponiblesEntre() para
+     * no mantener la misma lógica duplicada en dos lugares (P2.1).
+     */
+    private function aplicarFiltroSolapamiento($query, Carbon $fechaInicio, Carbon $fechaFin, $idReservaExcluir = null): void
+    {
+        $query->where('estado', 1) // Solo reservas activas
+            ->whereDate('fecha_inicio', '<=', $fechaFin->toDateString())
+            ->whereDate('fecha_fin', '>=', $fechaInicio->toDateString());
+
+        if ($idReservaExcluir) {
+            $query->where('id', '!=', $idReservaExcluir);
+        }
+    }
+
+    /**
+     * P2.1: habitaciones sin ninguna reserva activa que se solape con el rango
+     * [fechaInicio, fechaFin]. A diferencia de Habitacion.estado (que refleja si
+     * está ocupada HOY), esto responde "libre para ESTE rango", que puede ser en
+     * el futuro.
+     */
+    public function habitacionesDisponiblesEntre($fechaInicio, $fechaFin, $idReservaExcluir = null)
+    {
+        $fechaInicio = Carbon::parse($fechaInicio);
+        $fechaFin = Carbon::parse($fechaFin);
+
+        return Habitacion::with('tipoHabitacion')
+            ->whereDoesntHave('habitacionReservas', function ($query) use ($fechaInicio, $fechaFin, $idReservaExcluir) {
+                $query->whereHas('reserva', fn ($q) => $this->aplicarFiltroSolapamiento($q, $fechaInicio, $fechaFin, $idReservaExcluir));
+            })
+            ->get();
     }
 
     /**

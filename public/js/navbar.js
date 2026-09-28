@@ -262,3 +262,17 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 });
+
+// === Mensajes tipo "toast" (P2.3) ===
+// Los banners .alerta-error/.alerta-exito que llegan por session()->with(...) se
+// desvanecen solos después de unos segundos, en vez de quedar fijos hasta el
+// siguiente cambio de página.
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.alerta-error, .alerta-exito').forEach(alerta => {
+        setTimeout(() => {
+            alerta.style.transition = 'opacity 0.5s ease-out';
+            alerta.style.opacity = '0';
+            setTimeout(() => alerta.remove(), 500);
+        }, 4000);
+    });
+});

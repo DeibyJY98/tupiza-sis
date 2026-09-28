@@ -29,11 +29,12 @@ class RecalcularDisponibilidadHabitaciones extends Command
     public function handle(): int
     {
         $notificacionesNuevas = $this->notificarCheckOutsDeHoy();
+        $autoCheckouts = Reserva::autoCheckoutVencidos();
 
         $habitaciones = Habitacion::all();
         $habitaciones->each(fn (Habitacion $habitacion) => $habitacion->actualizarDisponibilidad());
 
-        $this->info("Check-outs notificados: {$notificacionesNuevas}. Disponibilidad recalculada para {$habitaciones->count()} habitación(es).");
+        $this->info("Check-outs notificados: {$notificacionesNuevas}. Reservas cerradas automáticamente: {$autoCheckouts}. Disponibilidad recalculada para {$habitaciones->count()} habitación(es).");
 
         return self::SUCCESS;
     }

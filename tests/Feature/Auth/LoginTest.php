@@ -11,7 +11,7 @@ it('autentica con el guard correspondiente al rol y guarda ese guard en la sesiÃ
         'password' => $password,
     ]);
 
-    $response->assertRedirect(route('mostrar.reserva'));
+    $response->assertRedirect(route('dashboard'));
     expect(session('auth_guard'))->toBe('administrador');
     expect(Auth::guard('administrador')->check())->toBeTrue();
     expect(Auth::guard('administrador')->id())->toBe($user->id);

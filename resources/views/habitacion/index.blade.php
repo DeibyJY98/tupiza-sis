@@ -32,7 +32,7 @@
     </div>
 
     <div class="input-group" style="pading:5%;">
-      <select id="estado" style="color: #4f37d2; border: 2px solid #4f37d2; background-color: transparent;">
+      <select id="estado" class="select-filtro-estado">
         <option value="">Seleccionar Estado</option>
         <option value="1">Disponible</option>
         <option value="0">No disponible</option>
@@ -218,8 +218,11 @@
   const filtroFechaFin = document.getElementById('filtroFechaFin');
   const btnFiltrar = document.getElementById('btnFiltrar');
   
-  // Establecer fecha mínima como hoy
-  const hoy = new Date().toISOString().split('T')[0];
+  // Establecer fecha mínima como hoy. OJO: no usar toISOString() aquí, convierte a
+  // UTC y en zonas con offset negativo (Bolivia, UTC-4) eso adelanta "hoy" un día
+  // pasadas las 20:00 locales, bloqueando la fecha de hoy en el filtro.
+  const fechaActual = new Date();
+  const hoy = `${fechaActual.getFullYear()}-${String(fechaActual.getMonth() + 1).padStart(2, '0')}-${String(fechaActual.getDate()).padStart(2, '0')}`;
   filtroFechaInicio.min = hoy;
   filtroFechaFin.min = hoy;
 

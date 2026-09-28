@@ -53,7 +53,7 @@ class AuthController extends Controller
             // Recordar con qué guard inició sesión, para poder resolverlo en middlewares/vistas
             $request->session()->put('auth_guard', $guard);
 
-            return redirect()->route('mostrar.reserva');
+            return redirect()->route('dashboard');
         }
         else
         {

@@ -121,12 +121,67 @@
     font-weight: 600;
 }
 
+/* Modales de pago (Ver, Crear, Editar): detalles/formulario a la izquierda,
+   imagen del comprobante a la derecha. Más ancho que un modal normal para que
+   quepan las dos columnas. */
+.modal-pago-2col {
+    width: 700px;
+}
+.pago-columnas {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+}
+.pago-detalles {
+    flex: 1 1 55%;
+    min-width: 0;
+}
+.pago-comprobante {
+    flex: 1 1 45%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+.pago-comprobante label {
+    font-weight: bold;
+    color: white;
+    margin-bottom: 5px;
+}
+.pago-comprobante img {
+    width: 100%;
+    border-radius: 8px;
+    margin-top: 6px;
+}
+
+/* Modal genérico de 2 columnas (formulario a formulario, sin imagen): reserva
+   crear/editar. Mismo criterio de ancho que los modales de pago. */
+.modal-2col {
+    width: 700px;
+}
+.form-columnas {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+}
+.form-columna {
+    flex: 1 1 50%;
+    min-width: 0;
+}
+
 @media (max-width: 768px) {
     .modal-contenido {
         width: 92%;
         max-height: 85vh;
         overflow-y: auto;
         padding: 18px 20px;
+    }
+    .modal-pago-2col,
+    .modal-2col {
+        width: 92%;
+    }
+    .pago-columnas,
+    .form-columnas {
+        flex-direction: column;
     }
     .modal-footer {
         flex-wrap: wrap;

@@ -24,7 +24,7 @@
 <!--SECCION DE FILTROS -->
 <div class="filters">
   <div class="input-group" style="pading:5%;">
-    <select id="estado" style="color: #4f37d2; border: 2px solid #4f37d2; background-color: transparent;">
+    <select id="estado" class="select-filtro-estado">
       <option value="">Seleccionar Estado</option>
       <option value="1">Activo</option>
       <option value="0">Inactivo</option>

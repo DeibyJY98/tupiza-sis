@@ -43,8 +43,12 @@ class Pago extends Model
             ] : null,
             // Reserva
             'reserva'           => $this->reserva ? [
-                'id'            => $this->reserva->id,
-                'costo_total'   => $this->reserva->costo_total,
+                'id'             => $this->reserva->id,
+                'costo_total'    => $this->reserva->costo_total,
+                'fecha_inicio'   => $this->reserva->fecha_inicio ? \Illuminate\Support\Carbon::parse($this->reserva->fecha_inicio)->format('Y-m-d') : null,
+                'fecha_fin'      => $this->reserva->fecha_fin ? \Illuminate\Support\Carbon::parse($this->reserva->fecha_fin)->format('Y-m-d') : null,
+                'estado_estadia' => $this->reserva->estado_estadia,
+                'habitaciones'   => $this->reserva->habitaciones->pluck('numero_habitacion')->implode(', '),
             ] : null,
         ];
     }

@@ -27,8 +27,12 @@ class Habitacion extends Model
 
     public function reservas()
     {
+        // Ver el comentario equivalente en Reserva::habitaciones(): sin este filtro, una
+        // reserva editada (que soft-elimina la fila vieja de habitacion_reservas) queda
+        // duplicada porque belongsToMany no respeta el soft delete de la tabla pivote.
         return $this->belongsToMany(Reserva::class, 'habitacion_reservas', 'id_habitacion', 'id_reserva')
                     ->withPivot('monto')
+                    ->wherePivotNull('deleted_at')
                     ->withTimestamps();
     }
 
@@ -57,7 +61,9 @@ class Habitacion extends Model
      *
      * Si el check-out (fecha_fin) de una reserva es justamente hoy, esa reserva
      * deja de contar como ocupante a partir de HORA_CHECK_OUT (antes de esa hora
-     * sigue ocupando, ya que el huésped todavía no se retiró).
+     * sigue ocupando, ya que el huésped todavía no se retiró). Si el recepcionista
+     * ya hizo el check-out manualmente (Reserva::checkOut), la habitación se
+     * libera de inmediato sin esperar esa hora.
      *
      * $idReservaExcluir permite recalcular "como si" una reserva puntual ya no
      * existiera, útil cuando se llama justo antes de eliminarla/cancelarla.
@@ -78,7 +84,22 @@ class Habitacion extends Model
             ->get();
 
         $ocupadaHoy = $reservasQueCubrenHoy->contains(function (HabitacionReserva $habitacionReserva) use ($hoy, $yaPasoElCheckOut) {
-            $esCheckOutHoy = \Illuminate\Support\Carbon::parse($habitacionReserva->reserva->fecha_fin)->toDateString() === $hoy;
+            $reserva = $habitacionReserva->reserva;
+
+            if ($reserva->estado_estadia === Reserva::ESTADIA_CHECK_OUT) {
+                return false;
+            }
+
+            // Si el huésped ya hizo check-in, la habitación sigue ocupada hasta que se
+            // registre el check-out explícito: el auto-liberado por hora de check-out
+            // (de abajo) es solo una red de seguridad para cuando NADIE hizo check-in ni
+            // check-out (se asume que no llegó o que el recepcionista olvidó cerrar la
+            // estadía), no debe pisar una estadía que sabemos que sigue en curso.
+            if ($reserva->estado_estadia === Reserva::ESTADIA_CHECK_IN) {
+                return true;
+            }
+
+            $esCheckOutHoy = \Illuminate\Support\Carbon::parse($reserva->fecha_fin)->toDateString() === $hoy;
 
             return !($esCheckOutHoy && $yaPasoElCheckOut);
         });

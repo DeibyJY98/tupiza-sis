@@ -32,7 +32,7 @@
       <label for="fecha_fin" class="floating-label">Fecha Final</label>
     </div>
     <div class="input-group" style="pading:5%;">
-      <select id="estado" style="color: #4f37d2; border: 2px solid #4f37d2; background-color: transparent;">
+      <select id="estado" class="select-filtro-estado">
         <option value="">Seleccionar Estado</option>
         <option value="1">Completado</option>
         <option value="0">Cancelado</option>
@@ -57,6 +57,7 @@
         <th><span>Cliente</span></th>
         <th><span>Habitación</span></th>
         <th><span>Estado</span></th>
+        <th><span>Estadía</span></th>
         <th><span>Acciones</span></th>
       </tr>
     </thead>
@@ -88,9 +89,25 @@
             <span class="badge-estado activo">Completado</span>
           @else
             <span class="badge-estado inactivo">Cancelado</span>
-          @endif    
+          @endif
+        </td>
+        @php $estadia = $dato['estado_estadia'] ?? 'pendiente'; @endphp
+        <td>
+            <span class="badge-estadia {{ $estadia }}">
+                @switch($estadia)
+                    @case('confirmada') Confirmada @break
+                    @case('check_in') Check-in @break
+                    @case('check_out') Check-out @break
+                    @default Pendiente
+                @endswitch
+            </span>
         </td>
         <td class="acciones">
+            <!-- Botón ver detalle -->
+            <button type="button" class="btn btn-ver btn-abrir-ver-reserva" data-reserva='@json($dato)'>
+                Ver
+            </button>
+
             <!-- Botón editar -->
             <button class="btn btn-edit btn-abrir-editar"
                 data-id="{{ $dato['id'] }}"
@@ -107,6 +124,20 @@
 
             <button type="button" class="btn btn-pdf" data-ruta-pdf="{{ route('pdf.reserva') }}" data-id="{{ $dato['id'] }}">PDF</button>
 
+            @if ($dato['estado'] == 1 && in_array($estadia, ['pendiente', 'confirmada']) && \Carbon\Carbon::parse($dato['fecha_inicio'])->isToday())
+                <form action="{{ route('reserva.check-in', $dato['id']) }}" method="POST" style="display:inline;">
+                    @csrf
+                    <button type="submit" class="btn btn-edit">Check-in</button>
+                </form>
+            @endif
+
+            @if ($estadia === 'check_in')
+                <form action="{{ route('reserva.check-out', $dato['id']) }}" method="POST" style="display:inline;">
+                    @csrf
+                    <button type="submit" class="btn btn-edit">Check-out</button>
+                </form>
+            @endif
+
             <!-- Botón eliminar -->
             <button class="btn btn-cancelar btn-abrir-eliminar"
                 data-id-eliminar="{{ $dato['id'] }}">
@@ -121,93 +152,99 @@
 
 {{-- ventana modal crear --}}
 <div id="modalCrear" class="modal-overlay" style="display:none">
-  <div class="modal-contenido">
+  <div class="modal-contenido modal-2col">
     <div class="modal-header">
       <h1><span>Agregar Reserva</span></h1>
       <button id="cerrarModalCrear" class="btn-cerrar">&times;</button>
     </div>
     <form action="{{ route('crear.reserva') }}" method="POST" id="formReserva">
       @csrf
-      <div class="campo-form">
-        <label>Habitación:</label>
-        <select name="id_habitacion" id="selectHabitacion" required>
-          <option value="">-- Seleccione una habitación --</option>
-          @foreach ($habitaciones as $hab)
-              @php
-                  $precio = 0;
-                  $label = '';
-                  $idVal = '';
+      <div class="form-columnas">
+        <div class="form-columna">
+          <div class="campo-form">
+            <label>Habitación:</label>
+            <select name="id_habitacion" id="selectHabitacion" required>
+              <option value="">-- Seleccione una habitación --</option>
+              @foreach ($habitaciones as $hab)
+                  @php
+                      $precio = 0;
+                      $label = '';
+                      $idVal = '';
 
-                  if (is_array($hab)) {
-                      $precio = $hab['tipo_habitacion']['precio'] ?? $hab['precio'] ?? 0;
-                      $label = $hab['numero_habitacion'] ?? ($hab['id'] ?? '');
-                      $idVal = $hab['id'] ?? '';
-                  } else {
-                      $precio = optional($hab->tipoHabitacion)->precio ?? $hab->precio ?? 0;
-                      $label = $hab->numero_habitacion ?? $hab->id;
-                      $idVal = $hab->id;
-                  }
-              @endphp
-              <option value="{{ $idVal }}" data-precio="{{ $precio }}">{{ $label }}</option>
-          @endforeach
-        </select>
-      </div>
+                      if (is_array($hab)) {
+                          $precio = $hab['tipo_habitacion']['precio'] ?? $hab['precio'] ?? 0;
+                          $label = $hab['numero_habitacion'] ?? ($hab['id'] ?? '');
+                          $idVal = $hab['id'] ?? '';
+                      } else {
+                          $precio = optional($hab->tipoHabitacion)->precio ?? $hab->precio ?? 0;
+                          $label = $hab->numero_habitacion ?? $hab->id;
+                          $idVal = $hab->id;
+                      }
+                  @endphp
+                  <option value="{{ $idVal }}" data-precio="{{ $precio }}">{{ $label }}</option>
+              @endforeach
+            </select>
+          </div>
 
-      <div class="campo-form">
-        <label>Fecha inicio:</label>
-        <input type="date" name="fecha_inicio" id="fecha_inicio" value="{{ \Carbon\Carbon::now(new DateTimeZone('-04:00'))->format('Y-m-d') }}" required>
-      </div>
+          <div class="campo-form">
+            <label>Fecha inicio:</label>
+            <input type="date" name="fecha_inicio" id="fecha_inicio" value="{{ \Carbon\Carbon::now(new DateTimeZone('-04:00'))->format('Y-m-d') }}" required>
+          </div>
 
-      <div class="campo-form">
-        <label>Fecha fin:</label>
-        <input type="date" name="fecha_fin" id="fecha_fin" required>
-      </div>
+          <div class="campo-form">
+            <label>Fecha fin:</label>
+            <input type="date" name="fecha_fin" id="fecha_fin" required>
+          </div>
 
-      <div class="campo-form">
-        <label>Costo total:</label>
-        <input type="number" name="costo_total" id="costo_total" step="0.01" required readonly>
-      </div>
+          <div class="campo-form">
+            <label>Costo total:</label>
+            <input type="number" name="costo_total" id="costo_total" step="0.01" required readonly>
+          </div>
 
-      <div class="campo-form">
-        <label>Estado:</label>
-        <input type="number" name="estado" value="1" required>
-      </div>
+          <div class="campo-form">
+            <label>Estado:</label>
+            <input type="number" name="estado" value="1" required>
+          </div>
+        </div>
 
-      <div class="campo-form">
-        <label>Trabajador:</label>
-        @if ($trabajadorActual)
-          <input type="text" value="{{ optional($trabajadorActual->persona)->nombre }} {{ optional($trabajadorActual->persona)->apellido }} (tú)" disabled>
-        @else
-          <select name="id_trabajador" required>
-            <option value="">-- Seleccione un trabajador --</option>
-            @foreach ($trabajadores as $trab)
-              <option value="{{ $trab['id'] }}">{{ optional($trab->persona)->nombre }} {{ optional($trab->persona)->apellido }}</option>
-            @endforeach
-          </select>
-        @endif
-      </div>
+        <div class="form-columna">
+          <div class="campo-form">
+            <label>Trabajador:</label>
+            @if ($trabajadorActual)
+              <input type="text" value="{{ optional($trabajadorActual->persona)->nombre }} {{ optional($trabajadorActual->persona)->apellido }} (tú)" disabled>
+            @else
+              <select name="id_trabajador" required>
+                <option value="">-- Seleccione un trabajador --</option>
+                @foreach ($trabajadores as $trab)
+                  <option value="{{ $trab['id'] }}">{{ optional($trab->persona)->nombre }} {{ optional($trab->persona)->apellido }}</option>
+                @endforeach
+              </select>
+            @endif
+          </div>
 
-      <div class="campo-form">
-        <label>Cliente:</label>
-        <select name="id_cliente" required>
-          <option value="">-- Seleccione un cliente --</option>
-          @foreach ($clientes as $cliente)
-            <option value="{{ $cliente['id'] }}">{{ optional( $cliente->persona)->nombre }} {{ optional( $cliente->persona)->apellido }}</option>
-          @endforeach
-        </select>
-      </div>
+          <div class="campo-form">
+            <label>Cliente:</label>
+            <select name="id_cliente" required>
+              <option value="">-- Seleccione un cliente --</option>
+              @foreach ($clientes as $cliente)
+                <option value="{{ $cliente['id'] }}">{{ optional( $cliente->persona)->nombre }} {{ optional( $cliente->persona)->apellido }}</option>
+              @endforeach
+            </select>
+          </div>
 
-      <div class="campo-form">
-        <label>Servicios Extras:</label>
-        <div class="checkbox-group" id="serviciosExtraCrear">
-          @forelse ($serviciosExtras as $servicio)
-            <label class="checkbox-item">
-              <input type="checkbox" name="servicios_extra[]" value="{{ $servicio->id }}" data-precio="{{ $servicio->precio }}" class="servicio-extra-check">
-              {{ $servicio->nombre }} (+{{ $servicio->precio }})
-            </label>
-          @empty
-            <span class="checkbox-empty">No hay servicios extras activos.</span>
-          @endforelse
+          <div class="campo-form">
+            <label>Servicios Extras:</label>
+            <div class="checkbox-group" id="serviciosExtraCrear">
+              @forelse ($serviciosExtras as $servicio)
+                <label class="checkbox-item">
+                  <input type="checkbox" name="servicios_extra[]" value="{{ $servicio->id }}" data-precio="{{ $servicio->precio }}" class="servicio-extra-check">
+                  {{ $servicio->nombre }} (+{{ $servicio->precio }})
+                </label>
+              @empty
+                <span class="checkbox-empty">No hay servicios extras activos.</span>
+              @endforelse
+            </div>
+          </div>
         </div>
       </div>
 
@@ -221,7 +258,7 @@
 
 {{-- ventana modal editar --}}
 <div id="modalEditar" class="modal-overlay" style="display:none">
-  <div class="modal-contenido">
+  <div class="modal-contenido modal-2col">
     <div class="modal-header">
       <h1><span>Editar Reserva</span></h1>
       <button id="cerrarModalEditar" class="btn-cerrar">&times;</button>
@@ -229,84 +266,90 @@
 
     <form action="{{ route('editar.reserva') }}" method="POST" id="formEditar" onsubmit="handleEditSubmit(event)">
       @csrf
-      <div class="campo-form">
-        <label>Id:</label>
-        <input type="text" name="id" id="edit_id" step="RES-00" required readonly>
-      </div>
+      <div class="form-columnas">
+        <div class="form-columna">
+          <div class="campo-form">
+            <label>Id:</label>
+            <input type="text" name="id" id="edit_id" step="RES-00" required readonly>
+          </div>
 
-      <div class="campo-form">
-        <label>Habitación:</label>
-        <select name="id_habitacion" id="edit_habitacion" required>
-          @foreach ($habitaciones as $hab)
-              @php
-                  $precio = 0;
-                  $label = '';
-                  $idVal = '';
+          <div class="campo-form">
+            <label>Habitación:</label>
+            <select name="id_habitacion" id="edit_habitacion" required>
+              @foreach ($habitaciones as $hab)
+                  @php
+                      $precio = 0;
+                      $label = '';
+                      $idVal = '';
 
-                  if (is_array($hab)) {
-                      $precio = $hab['tipo_habitacion']['precio'] ?? $hab['precio'] ?? 0;
-                      $label = $hab['numero_habitacion'] ?? ($hab['id'] ?? '');
-                      $idVal = $hab['id'] ?? '';
-                  } else {
-                      $precio = optional($hab->tipoHabitacion)->precio ?? $hab->precio ?? 0;
-                      $label = $hab->numero_habitacion ?? $hab->id;
-                      $idVal = $hab->id;
-                  }
-              @endphp
-              <option value="{{ $idVal }}" data-precio="{{ $precio }}">{{ $label }}</option>
-          @endforeach
-        </select>
-      </div>
+                      if (is_array($hab)) {
+                          $precio = $hab['tipo_habitacion']['precio'] ?? $hab['precio'] ?? 0;
+                          $label = $hab['numero_habitacion'] ?? ($hab['id'] ?? '');
+                          $idVal = $hab['id'] ?? '';
+                      } else {
+                          $precio = optional($hab->tipoHabitacion)->precio ?? $hab->precio ?? 0;
+                          $label = $hab->numero_habitacion ?? $hab->id;
+                          $idVal = $hab->id;
+                      }
+                  @endphp
+                  <option value="{{ $idVal }}" data-precio="{{ $precio }}">{{ $label }}</option>
+              @endforeach
+            </select>
+          </div>
 
-      <div class="campo-form">
-        <label>Fecha inicio:</label>
-        <input type="date" name="fecha_inicio" id="edit_fecha_inicio" required>
-      </div>
+          <div class="campo-form">
+            <label>Fecha inicio:</label>
+            <input type="date" name="fecha_inicio" id="edit_fecha_inicio" required>
+          </div>
 
-      <div class="campo-form">
-        <label>Fecha fin:</label>
-        <input type="date" name="fecha_fin" id="edit_fecha_fin" required>
-      </div>
+          <div class="campo-form">
+            <label>Fecha fin:</label>
+            <input type="date" name="fecha_fin" id="edit_fecha_fin" required>
+          </div>
 
-      <div class="campo-form">
-        <label>Estado:</label>
-        <input type="number" name="estado" id="edit_estado" required>
-      </div>
+          <div class="campo-form">
+            <label>Estado:</label>
+            <input type="number" name="estado" id="edit_estado" required>
+          </div>
 
-      <div class="campo-form">
-        <label>Costo total:</label>
-        <input type="number" name="costo_total" id="edit_costo_total" step="0.01" required readonly title="Se recalcula automáticamente en el servidor a partir de la habitación, las fechas y los servicios extras">
-      </div>
+          <div class="campo-form">
+            <label>Costo total:</label>
+            <input type="number" name="costo_total" id="edit_costo_total" step="0.01" required readonly title="Se recalcula automáticamente en el servidor a partir de la habitación, las fechas y los servicios extras">
+          </div>
+        </div>
 
-      <div class="campo-form">
-        <label>Trabajador:</label>
-        <select name="id_trabajador" id="edit_trabajador" required>
-          @foreach ($trabajadores as $trab)
-            <option value="{{ $trab->id }}">{{ optional($trab->persona)->nombre }} {{ optional($trab->persona)->apellido }}</option>
-          @endforeach
-        </select>
-      </div>
+        <div class="form-columna">
+          <div class="campo-form">
+            <label>Trabajador:</label>
+            <select name="id_trabajador" id="edit_trabajador" required>
+              @foreach ($trabajadores as $trab)
+                <option value="{{ $trab->id }}">{{ optional($trab->persona)->nombre }} {{ optional($trab->persona)->apellido }}</option>
+              @endforeach
+            </select>
+          </div>
 
-      <div class="campo-form">
-        <label>Cliente:</label>
-        <select name="id_cliente" id="edit_cliente" required>
-          @foreach ($clientes as $cliente)
-            <option value="{{ $cliente->id }}">{{ optional($cliente->persona)->nombre }} {{ optional($cliente->persona)->apellido }}</option>
-          @endforeach
-        </select>
-      </div>
+          <div class="campo-form">
+            <label>Cliente:</label>
+            <select name="id_cliente" id="edit_cliente" required>
+              @foreach ($clientes as $cliente)
+                <option value="{{ $cliente->id }}">{{ optional($cliente->persona)->nombre }} {{ optional($cliente->persona)->apellido }}</option>
+              @endforeach
+            </select>
+          </div>
 
-      <div class="campo-form">
-        <label>Servicios Extras:</label>
-        <div class="checkbox-group" id="serviciosExtraEditar">
-          @forelse ($serviciosExtras as $servicio)
-            <label class="checkbox-item">
-              <input type="checkbox" name="servicios_extra[]" value="{{ $servicio->id }}" data-precio="{{ $servicio->precio }}" class="servicio-extra-check-editar">
-              {{ $servicio->nombre }} (+{{ $servicio->precio }})
-            </label>
-          @empty
-            <span class="checkbox-empty">No hay servicios extras activos.</span>
-          @endforelse
+          <div class="campo-form">
+            <label>Servicios Extras:</label>
+            <div class="checkbox-group" id="serviciosExtraEditar">
+              @forelse ($serviciosExtras as $servicio)
+                <label class="checkbox-item">
+                  <input type="checkbox" name="servicios_extra[]" value="{{ $servicio->id }}" data-precio="{{ $servicio->precio }}" class="servicio-extra-check-editar">
+                  {{ $servicio->nombre }} (+{{ $servicio->precio }})
+                </label>
+              @empty
+                <span class="checkbox-empty">No hay servicios extras activos.</span>
+              @endforelse
+            </div>
+          </div>
         </div>
       </div>
 
@@ -340,6 +383,69 @@
     </div>
 </div>
 
+{{-- ventana modal ver detalle --}}
+<div id="modalVerReserva" class="modal-overlay" style="display:none">
+  <div class="modal-contenido modal-2col">
+    <div class="modal-header">
+      <h1><span>Detalle de la Reserva</span></h1>
+      <button type="button" id="cerrarModalVerReserva" class="btn-cerrar">&times;</button>
+    </div>
+
+    <div class="form-columnas">
+      <div class="form-columna">
+        <div class="campo-form">
+          <label>Reserva:</label>
+          <span id="verRes_id"></span>
+        </div>
+        <div class="campo-form">
+          <label>Fechas:</label>
+          <span id="verRes_fechas"></span>
+        </div>
+        <div class="campo-form">
+          <label>Habitación(es):</label>
+          <span id="verRes_habitaciones"></span>
+        </div>
+        <div class="campo-form">
+          <label>Costo total:</label>
+          <span id="verRes_costo"></span>
+        </div>
+        <div class="campo-form">
+          <label>Estado:</label>
+          <span id="verRes_estado"></span>
+        </div>
+        <div class="campo-form">
+          <label>Estadía:</label>
+          <span id="verRes_estadia"></span>
+        </div>
+        <div class="campo-form">
+          <label>Trabajador:</label>
+          <span id="verRes_trabajador"></span>
+        </div>
+        <div class="campo-form">
+          <label>Cliente:</label>
+          <span id="verRes_cliente"></span>
+        </div>
+      </div>
+
+      <div class="form-columna">
+        <div class="campo-form">
+          <label>Servicios Extra:</label>
+          <ul class="dashboard-list" id="verRes_servicios"></ul>
+        </div>
+        <div class="campo-form">
+          <label>Pagos:</label>
+          <ul class="dashboard-list" id="verRes_pagos"></ul>
+          <span>Saldo pendiente: <strong id="verRes_saldo"></strong></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="btn-cancelarM" id="cancelarVerReserva">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <script>
   const selectReserva = document.getElementById('selectHabitacion');
   const selectHabitacionEdit = document.getElementById('edit_habitacion');
@@ -361,6 +467,35 @@
   const fechaFin = document.getElementById('fecha_fin');
   const selectHabitacion = document.getElementById('selectHabitacion');
   const costoTotal = document.getElementById('costo_total');
+
+  // P2.1: en vez de mostrar siempre todas las habitaciones, cuando ya hay un
+  // rango de fechas completo se consulta cuáles están realmente libres para ESE
+  // rango (no depende del estado "hoy" de la habitación) y se reemplazan las
+  // opciones del select por esa lista.
+  function actualizarHabitacionesDisponibles() {
+    if (!fechaInicio.value || !fechaFin.value) return;
+
+    fetch(`/reserva/habitaciones-disponibles?desde=${fechaInicio.value}&hasta=${fechaFin.value}`)
+      .then(response => response.json())
+      .then(data => {
+        const valorPrevio = selectHabitacion.value;
+        let opciones = '<option value="">-- Seleccione una habitación --</option>';
+
+        (data.habitaciones || []).forEach(habitacion => {
+          opciones += `<option value="${habitacion.id}" data-precio="${habitacion.precio}">${habitacion.numero_habitacion}</option>`;
+        });
+
+        selectHabitacion.innerHTML = opciones;
+
+        // Si la habitación ya elegida sigue disponible para el nuevo rango, se mantiene.
+        if (Array.from(selectHabitacion.options).some(opcion => opcion.value === valorPrevio)) {
+          selectHabitacion.value = valorPrevio;
+        }
+
+        calcularCostoTotal();
+      })
+      .catch(() => {}); // si falla la consulta, se deja la lista de habitaciones tal cual estaba
+  }
 
   // Función para calcular las fechas deshabilitadas
   function actualizarFechasDeshabilitadas() {
@@ -415,11 +550,13 @@
   fechaInicio.addEventListener('change', function() {
     validarFecha(this);
     fechaFin.min = this.value; // La fecha fin no puede ser anterior a la fecha inicio
+    actualizarHabitacionesDisponibles();
     calcularCostoTotal();
   });
 
   fechaFin.addEventListener('change', function() {
     validarFecha(this);
+    actualizarHabitacionesDisponibles();
     calcularCostoTotal();
   });
 
@@ -454,7 +591,73 @@
   const modalCrear = document.getElementById('modalCrear');
   document.getElementById('abrirModalCrear').addEventListener('click', () => modalCrear.style.display = 'flex');
   document.getElementById('cerrarModalCrear').addEventListener('click', () => modalCrear.style.display = 'none');
-  document.getElementById('cancelarModal').addEventListener('click', () => modalCrear.style.display = 'none');    /* === Modal Eliminar === */
+  document.getElementById('cancelarModal').addEventListener('click', () => modalCrear.style.display = 'none');
+
+  /* === Modal Ver detalle === */
+  const modalVerReserva = document.getElementById('modalVerReserva');
+  const verResId = document.getElementById('verRes_id');
+  const verResFechas = document.getElementById('verRes_fechas');
+  const verResHabitaciones = document.getElementById('verRes_habitaciones');
+  const verResCosto = document.getElementById('verRes_costo');
+  const verResEstado = document.getElementById('verRes_estado');
+  const verResEstadia = document.getElementById('verRes_estadia');
+  const verResTrabajador = document.getElementById('verRes_trabajador');
+  const verResCliente = document.getElementById('verRes_cliente');
+  const verResServicios = document.getElementById('verRes_servicios');
+  const verResPagos = document.getElementById('verRes_pagos');
+  const verResSaldo = document.getElementById('verRes_saldo');
+
+  const ETIQUETAS_ESTADIA_RESERVA = {
+    pendiente: 'Pendiente',
+    confirmada: 'Confirmada',
+    check_in: 'Check-in',
+    check_out: 'Check-out',
+  };
+
+  document.querySelectorAll('.btn-abrir-ver-reserva').forEach(boton => {
+    boton.addEventListener('click', () => {
+      const reserva = JSON.parse(boton.getAttribute('data-reserva'));
+
+      verResId.textContent = `RES-${reserva.id}`;
+      verResFechas.textContent = `${reserva.fecha_inicio} al ${reserva.fecha_fin}`;
+      verResHabitaciones.textContent = (reserva.habitaciones && reserva.habitaciones.length)
+        ? reserva.habitaciones.map(h => `Habitación ${h.numero_habitacion} (Bs. ${h.monto})`).join(', ')
+        : '—';
+      verResCosto.textContent = `Bs. ${reserva.costo_total}`;
+      verResEstado.textContent = reserva.estado == 1 ? 'Completado' : 'Cancelado';
+      verResEstadia.textContent = ETIQUETAS_ESTADIA_RESERVA[reserva.estado_estadia] || '—';
+      verResTrabajador.textContent = reserva.trabajador
+        ? `${reserva.trabajador.nombre} ${reserva.trabajador.apellido}`
+        : '—';
+      verResCliente.textContent = reserva.cliente
+        ? `${reserva.cliente.nombre} ${reserva.cliente.apellido}`
+        : '—';
+
+      verResServicios.innerHTML = (reserva.servicios_extra && reserva.servicios_extra.length)
+        ? reserva.servicios_extra.map(servicio => (
+            `<li><span>${servicio.nombre}</span><span class="dashboard-list-detalle">Bs. ${servicio.precio}</span></li>`
+          )).join('')
+        : '<li class="dashboard-list-empty">Sin servicios extra.</li>';
+
+      const pagos = reserva.pagos || [];
+      verResPagos.innerHTML = pagos.length
+        ? pagos.map(pago => (
+            `<li><span>${pago.fecha ?? '—'}</span><span class="dashboard-list-detalle">Bs. ${pago.monto} · ${pago.estado == 1 ? 'Completado' : 'Cancelado'}</span></li>`
+          )).join('')
+        : '<li class="dashboard-list-empty">Sin pagos registrados.</li>';
+
+      const pagado = pagos.filter(p => p.estado == 1).reduce((total, p) => total + parseFloat(p.monto), 0);
+      const saldo = parseFloat(reserva.costo_total) - pagado;
+      verResSaldo.textContent = `Bs. ${saldo.toFixed(2)}`;
+
+      modalVerReserva.style.display = 'flex';
+    });
+  });
+
+  document.getElementById('cerrarModalVerReserva').addEventListener('click', () => modalVerReserva.style.display = 'none');
+  document.getElementById('cancelarVerReserva').addEventListener('click', () => modalVerReserva.style.display = 'none');
+
+  /* === Modal Eliminar === */
   const modalEliminar = document.getElementById('modalEliminar');
   const inputIdEliminar = document.getElementById('inputIdEliminar');
 
@@ -514,6 +717,7 @@
       if (e.target === modalEditar) modalEditar.style.display = 'none';
       if (e.target === modalCrear) modalCrear.style.display = 'none';
       if (e.target === modalEliminar) modalEliminar.style.display = 'none';
+      if (e.target === modalVerReserva) modalVerReserva.style.display = 'none';
   });
   /* === Funciones de mensajes === */
   function mostrarMensaje(mensaje, esError = false) {

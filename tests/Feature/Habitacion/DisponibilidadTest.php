@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Habitacion;
+use App\Models\Reserva;
 use Carbon\Carbon;
 
 // Reutiliza crearHabitacionDePrueba() y crearReservaActiva() definidas en
@@ -33,4 +34,19 @@ it('libera la habitación automáticamente después de la hora de check-out el d
 
 it('respeta la constante Habitacion::HORA_CHECK_OUT usada por el schedule', function () {
     expect(Habitacion::HORA_CHECK_OUT)->toBe('11:00');
+});
+
+it('mantiene ocupada la habitación aunque pase la hora de check-out si el huésped ya hizo check-in y no se registró el check-out', function () {
+    Carbon::setTestNow(Carbon::today()->setTime(9, 0));
+    $habitacion = crearHabitacionDePrueba();
+    $reserva = crearReservaActiva($habitacion, Carbon::today()->subDays(2), Carbon::today());
+    $reserva->update(['estado_estadia' => Reserva::ESTADIA_CHECK_IN]);
+    expect($habitacion->fresh()->estado)->toBe(0);
+
+    Carbon::setTestNow(Carbon::today()->setTime(11, 30)); // pasó la hora de check-out
+    $habitacion->actualizarDisponibilidad();
+
+    // Sigue ocupada: nadie registró el check-out, así que el auto-liberado por hora
+    // no debe pisar una estadía que sabemos que sigue en curso.
+    expect($habitacion->fresh()->estado)->toBe(0);
 });
