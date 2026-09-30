@@ -12,10 +12,10 @@ use Illuminate\Support\Facades\DB;
 class ReservaService
 {
     /**
-     * Valida que la habitación esté libre en el rango [fechaInicio, fechaFin].
+     * Valida que la habitación esté libre en las noches de [fechaInicio, fechaFin).
      *
-     * El solapamiento se verifica con la condición clásica de rangos
-     * (existente.inicio <= nueva.fin AND existente.fin >= nueva.inicio), y la
+     * El solapamiento se verifica por noches
+     * (existente.inicio < nueva.fin AND existente.fin > nueva.inicio), y la
      * comprobación corre dentro de una transacción con bloqueo pesimista
      * (lockForUpdate) sobre la fila de la habitación: dos peticiones que validan
      * la misma habitación al mismo tiempo no pueden pasar la validación a la vez.
@@ -66,16 +66,18 @@ class ReservaService
     }
 
     /**
-     * Condición de solapamiento de rangos (límites inclusive: el día de salida
-     * sigue bloqueado, igual que en el calendario del formulario), reutilizada
+     * Condición de solapamiento por NOCHES (el día de salida no cuenta: se sale
+     * a las 11:00-12:00 y el siguiente huésped ingresa desde las 14:00, así que
+     * una reserva puede empezar el mismo día en que otra termina; coincide con
+     * el calendario del formulario y con el cobro por noches), reutilizada
      * por validarDisponibilidadHabitacion() y habitacionesDisponiblesEntre() para
      * no mantener la misma lógica duplicada en dos lugares (P2.1).
      */
     private function aplicarFiltroSolapamiento($query, Carbon $fechaInicio, Carbon $fechaFin, $idReservaExcluir = null): void
     {
         $query->where('estado', 1) // Solo reservas activas
-            ->whereDate('fecha_inicio', '<=', $fechaFin->toDateString())
-            ->whereDate('fecha_fin', '>=', $fechaInicio->toDateString());
+            ->whereDate('fecha_inicio', '<', $fechaFin->toDateString())
+            ->whereDate('fecha_fin', '>', $fechaInicio->toDateString());
 
         if ($idReservaExcluir) {
             $query->where('id', '!=', $idReservaExcluir);
@@ -102,9 +104,9 @@ class ReservaService
 
     /**
      * Recalcula el costo total en el SERVIDOR a partir de los datos reales de la
-     * base de datos: precio del tipo de habitación x días + suma de los servicios
-     * extras activos seleccionados. Usa la misma fórmula que el formulario (días
-     * contando inicio y fin) para que el valor que ve el recepcionista coincida
+     * base de datos: precio del tipo de habitación x noches + suma de los servicios
+     * extras activos seleccionados. Usa la misma fórmula que el formulario (noches
+     * entre ingreso y salida) para que el valor que ve el recepcionista coincida
      * con el que se guarda. El costo que envíe el navegador se ignora: es un dato
      * manipulable (ver P0.2 de md/GUIA-MEJORAS.md).
      */
@@ -116,8 +118,9 @@ class ReservaService
         $inicio = Carbon::parse($fechaInicio)->startOfDay();
         $fin = Carbon::parse($fechaFin)->startOfDay();
 
-        // Días contando tanto la llegada como la salida (misma fórmula del JS)
-        $dias = (int) $inicio->diffInDays($fin) + 1;
+        // Noches de hospedaje (ingreso 14:00-15:00, salida 11:00-12:00): el día de
+        // salida no se cobra. Mínimo 1 noche (misma fórmula del JS).
+        $dias = max(1, (int) $inicio->diffInDays($fin));
 
         $totalServicios = 0.0;
         if ($idsServiciosExtra !== []) {

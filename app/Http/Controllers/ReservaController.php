@@ -67,8 +67,8 @@ class ReservaController extends Controller
       $request->validate([
         // El costo ya no se confía al formulario: se recalcula en el servidor.
         'costo_total' => 'nullable|numeric|min:0',
-        'fecha_inicio' => 'required|date',
-        'fecha_fin' => 'required|date|after_or_equal:fecha_inicio',
+        'fecha_inicio' => 'required|date|after_or_equal:today',
+        'fecha_fin' => 'required|date|after:fecha_inicio',
         'estado' => 'required|numeric|in:0,1',
         'id_trabajador' => $trabajadorSesion ? 'nullable|exists:trabajadors,id' : 'required|exists:trabajadors,id',
         'id_cliente' => 'required|exists:clientes,id',
@@ -362,11 +362,17 @@ class ReservaController extends Controller
       }
   }
 
-  public function getFechasOcupadas($habitacion_id){
+  public function getFechasOcupadas(Request $request, $habitacion_id){
       try {
+          // ?excluir=ID: al editar una reserva, sus propias noches no deben contar como ocupadas
+          $idReservaExcluir = $request->query('excluir');
+
           $habitacionReservas = HabitacionReserva::where('id_habitacion', $habitacion_id)
-              ->whereHas('reserva', function ($query) {
+              ->whereHas('reserva', function ($query) use ($idReservaExcluir) {
                   $query->where('estado', 1); // solo reservas activas
+                  if ($idReservaExcluir) {
+                      $query->where('id', '!=', $idReservaExcluir);
+                  }
               })
               ->with('reserva.cliente.persona')
               ->get();
@@ -377,8 +383,9 @@ class ReservaController extends Controller
                   $inicio = Carbon::parse($hr->reserva->fecha_inicio);
                   $fin = Carbon::parse($hr->reserva->fecha_fin);
 
-                  // Generar array con todas las fechas entre inicio y fin
-                  for ($date = $inicio; $date->lte($fin); $date->addDay()) {
+                  // Noches ocupadas: desde el ingreso hasta la víspera de la salida
+                  // (el día de salida queda libre para un nuevo ingreso)
+                  for ($date = $inicio; $date->lt($fin); $date->addDay()) {
                       $fechas[] = $date->format('Y-m-d');
                   }
 

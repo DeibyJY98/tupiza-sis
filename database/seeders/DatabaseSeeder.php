@@ -20,8 +20,10 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
             ClienteSeeder::class,
             TrabajadorSeeder::class,
-            ReservaSeeder::class,
+            // HabitacionSeeder va antes: ReservaSeeder calcula el costo_total con el precio
+            // del tipo de cada habitación.
             HabitacionSeeder::class,
+            ReservaSeeder::class,
             DetalleRolSeeder::class,
             HabitacionReservaSeeder::class,
             TipoHabitacionCaracteristicaSeeder::class,

@@ -8,48 +8,65 @@ use Illuminate\Database\Seeder;
 
 class PagoSeeder extends Seeder
 {
+    /**
+     * Comprobantes de ejemplo (storage/app/public/general, expuestos por el enlace
+     * simbólico public/storage). Se reparten en orden entre todos los pagos; la ruta
+     * tiene el mismo formato que guarda PagoController ("storage/...").
+     */
+    private const COMPROBANTES = [
+        'storage/general/Comprobante.jpg',
+        'storage/general/Comprobante2.jpg',
+        'storage/general/Comprobante3.jpg',
+    ];
+
     public function run(): void
     {
         $reservas = Reserva::orderBy('id')->get();
+        $costos = ReservaSeeder::costos();
+        $contador = 0;
 
-        // Índice (0-based, mismo orden que ReservaSeeder::datos()) => lista de pagos
-        // [offset de días respecto a hoy, monto, estado (1 completado / 0 cancelado)].
-        // Algunas reservas quedan sin pago (pendientes) y otras con pago dividido en dos
-        // cuotas, a propósito, para poder demostrar el filtro de estado/fecha y la
-        // validación de saldo pendiente de PagoController.
-        $pagosPorReserva = [
-            0 => [[-11, 360, 0], [-10, 360, 1]], // intento fallido + pago exitoso
-            1 => [],
-            2 => [[-5, 200, 1], [-3, 160, 1]],
-            3 => [[-15, 480, 0]],
-            4 => [[0, 240, 1]],
-            5 => [[-9, 720, 0], [-8, 720, 1]],
-            6 => [],
-            7 => [[-3, 400, 1]],
-            8 => [],
-            9 => [[0, 600, 1]],
-            10 => [],
-            11 => [[-6, 600, 1]],
-            12 => [[0, 800, 1]],
-            13 => [[-12, 960, 0]],
-            14 => [[1, 840, 1]],
-            15 => [],
-            16 => [[10, 360, 1]],
-            17 => [],
-        ];
+        // Los pagos de cada reserva salen de ReservaSeeder::datos() (clave 'pagos'):
+        // [offset de días respecto a hoy, % del costo_total, estado (1 completado / 0 cancelado)].
+        // El costo_total ya incluye los servicios extras, así que los pagos los cubren.
+        // Hay reservas sin pago (pendientes), con pago parcial (saldo pendiente), con pago
+        // dividido en cuotas y con intentos cancelados, para poder probar filtros y validaciones.
+        foreach (ReservaSeeder::datos() as $i => $data) {
+            $reserva = $reservas[$i];
+            $costo = $costos[$i];
 
-        foreach ($pagosPorReserva as $reservaIdx => $pagos) {
-            $reserva = $reservas[$reservaIdx];
+            // Si los pagos completados suman 100%, el último toma el resto para que la suma
+            // sea exactamente el costo_total (sin desfase por redondeo).
+            $completados = array_keys(array_filter($data['pagos'], fn ($pago) => $pago[2] === 1));
+            $sumaPorcentaje = array_sum(array_map(fn ($k) => $data['pagos'][$k][1], $completados));
+            $ultimoCompletado = $sumaPorcentaje === 100 ? end($completados) : null;
+            $acumulado = 0;
 
-            foreach ($pagos as [$offset, $monto, $estado]) {
+            foreach ($data['pagos'] as $k => [$offset, $porcentaje, $estado]) {
+                $monto = (int) round($costo * $porcentaje / 100);
+
+                if ($estado === 1) {
+                    if ($k === $ultimoCompletado) {
+                        $monto = $costo - $acumulado;
+                    }
+                    $acumulado += $monto;
+                }
+
+                // Nunca en el futuro: el pago se registra como máximo "ahora"
+                $fecha = now()->addDays($offset)->setTime(9 + ($contador % 8), ($contador * 7) % 60);
+                if ($fecha->gt(now())) {
+                    $fecha = now();
+                }
+
                 Pago::create([
-                    'fecha' => now()->addDays($offset),
+                    'fecha' => $fecha,
                     'monto' => $monto,
-                    'comprobante' => 'COMP-' . str_pad($reserva->id, 3, '0', STR_PAD_LEFT) . '-' . ($offset + 100),
+                    'comprobante' => self::COMPROBANTES[$contador % count(self::COMPROBANTES)],
                     'estado' => $estado,
                     'id_reserva' => $reserva->id,
                     'id_cliente' => $reserva->id_cliente,
                 ]);
+
+                $contador++;
             }
         }
     }

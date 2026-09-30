@@ -256,7 +256,8 @@
 
               // Generar array de fechas seleccionadas
               const fechasSeleccionadas = [];
-              for (let d = new Date(inicio); d <= fin; d.setDate(d.getDate() + 1)) {
+              // Se comprueban las noches (el día de salida no cuenta); si inicio == fin, ese único día
+              for (let d = new Date(inicio); d < fin || d.getTime() === inicio.getTime(); d.setDate(d.getDate() + 1)) {
                   fechasSeleccionadas.push(d.toISOString().split('T')[0]);
               }
 

@@ -13,13 +13,14 @@ class HabitacionReservaSeeder extends Seeder
     {
         $reservas = Reserva::orderBy('id')->get();
         $habitaciones = Habitacion::orderBy('id')->get();
-        $datos = ReservaSeeder::datos();
+        $costos = ReservaSeeder::costos();
 
-        foreach ($datos as $i => $data) {
+        foreach (ReservaSeeder::datos() as $i => $data) {
             HabitacionReserva::create([
                 'id_reserva' => $reservas[$i]->id,
                 'id_habitacion' => $habitaciones[$data['habitacion']]->id,
-                'monto' => $data['costo_total'],
+                // Igual que en ReservaController: el monto del pivote es el costo total de la reserva
+                'monto' => $costos[$i],
             ]);
         }
     }

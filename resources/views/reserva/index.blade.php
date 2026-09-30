@@ -188,12 +188,12 @@
 
           <div class="campo-form">
             <label>Fecha inicio:</label>
-            <input type="date" name="fecha_inicio" id="fecha_inicio" value="{{ \Carbon\Carbon::now(new DateTimeZone('-04:00'))->format('Y-m-d') }}" required>
+            <input type="date" name="fecha_inicio" id="crear_fecha_inicio" value="{{ \Carbon\Carbon::now(new DateTimeZone('-04:00'))->format('Y-m-d') }}" required>
           </div>
 
           <div class="campo-form">
             <label>Fecha fin:</label>
-            <input type="date" name="fecha_fin" id="fecha_fin" required>
+            <input type="date" name="fecha_fin" id="crear_fecha_fin" required>
           </div>
 
           <div class="campo-form">
@@ -446,8 +446,16 @@
   </div>
 </div>
 
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
+<style>
+  .campo-form .flatpickr-wrapper { display: block; width: 100%; }
+  .campo-form .flatpickr-wrapper input { width: 100%; box-sizing: border-box; }
+  .flatpickr-day.flatpickr-disabled,.flatpickr-day.flatpickr-disabled:hover { color: #bbb; background: #f1f1f1; text-decoration: line-through; }
+</style>
 <script>
-  const selectReserva = document.getElementById('selectHabitacion');
+  const selectReserva =document.getElementById('selectHabitacion');
   const selectHabitacionEdit = document.getElementById('edit_habitacion');
   const inputMonto = document.getElementById('costo_total');
   const inputMontoEdit = document.getElementById('edit_costo_total');
@@ -457,14 +465,10 @@
       inputMonto.value = precio ? precio : '';
   });
 
-  selectHabitacionEdit.addEventListener('change', function() {
-      const precio = this.options[this.selectedIndex].getAttribute('data-precio');
-      inputMontoEdit.value = precio ? precio : '';
-  });
 
   let fechasOcupadas = [];
-  const fechaInicio = document.getElementById('fecha_inicio');
-  const fechaFin = document.getElementById('fecha_fin');
+  const fechaInicio = document.getElementById('crear_fecha_inicio');
+  const fechaFin = document.getElementById('crear_fecha_fin');
   const selectHabitacion = document.getElementById('selectHabitacion');
   const costoTotal = document.getElementById('costo_total');
 
@@ -497,38 +501,89 @@
       .catch(() => {}); // si falla la consulta, se deja la lista de habitaciones tal cual estaba
   }
 
-  // Función para calcular las fechas deshabilitadas
+  // Calendarios (flatpickr): un <input type="date"> nativo no permite deshabilitar
+  // días sueltos, así que se usa flatpickr para bloquear el pasado y los días ya
+  // reservados de la habitación elegida. El valor enviado sigue siendo Y-m-d.
+  const HOY = '{{ \Carbon\Carbon::now(new DateTimeZone('-04:00'))->format('Y-m-d') }}';
+
+  const pickerInicio = flatpickr(fechaInicio, {
+    locale: 'es',
+    dateFormat: 'Y-m-d',
+    altInput: true,
+    altFormat: 'd/m/Y',
+    minDate: HOY,
+    static: true,
+    onChange: function(selectedDates, valor) {
+      actualizarLimiteFin(valor);
+      actualizarHabitacionesDisponibles();
+      calcularCostoTotal();
+    }
+  });
+
+  const pickerFin = flatpickr(fechaFin, {
+    locale: 'es',
+    dateFormat: 'Y-m-d',
+    altInput: true,
+    altFormat: 'd/m/Y',
+    minDate: HOY,
+    static: true,
+    onChange: function() {
+      actualizarHabitacionesDisponibles();
+      calcularCostoTotal();
+    }
+  });
+
+  // La fecha fin no puede ser anterior al inicio ni cruzar una reserva existente:
+  // se limita a la primera noche ocupada posterior al inicio (ese día es salida).
+  function actualizarLimiteFin(inicio) {
+    // La estadía se cobra por noches: la salida es como mínimo el día siguiente al ingreso
+    let minimo = HOY;
+    if (inicio) {
+      const m = new Date(inicio + 'T00:00:00');
+      m.setDate(m.getDate() + 1);
+      minimo = flatpickr.formatDate(m, 'Y-m-d');
+    }
+    pickerFin.set('minDate', minimo);
+
+    let maximo = null;
+    if (inicio) {
+      // La salida puede coincidir con el día en que empieza la siguiente reserva
+      maximo = fechasOcupadas.filter(f => f > inicio).sort()[0] || null;
+    }
+    pickerFin.set('maxDate', maximo);
+
+    if (fechaFin.value && (fechaFin.value < minimo || (maximo && fechaFin.value > maximo))) {
+      pickerFin.clear();
+    }
+  }
+
+  // Consulta los días ocupados de la habitación y los bloquea en ambos calendarios
   function actualizarFechasDeshabilitadas() {
     const habitacionId = selectHabitacion.value;
-    if (!habitacionId) return;
+
+    if (!habitacionId) {
+      fechasOcupadas = [];
+      pickerInicio.set('disable', []);
+      actualizarLimiteFin(fechaInicio.value);
+      return;
+    }
 
     fetch(`/reserva/fechas-ocupadas/${habitacionId}`)
       .then(response => response.json())
-      .then(data => 
-      {
-        fechasOcupadas = data.fechas_ocupadas;
-        const fechaMinima = data.fecha_minima;
+      .then(data => {
+        fechasOcupadas = data.fechas_ocupadas || [];
 
-        // Actualizar min date en los inputs
-        fechaInicio.min = fechaMinima;
-        fechaFin.min = fechaMinima;
+        // Solo el ingreso se bloquea en las noches ocupadas; la salida se acota
+        // con minDate/maxDate en actualizarLimiteFin()
+        pickerInicio.set('disable', fechasOcupadas);
 
-        // Validar fechas actuales
-        validarFecha(fechaInicio);
-        validarFecha(fechaFin);
-      });
-  }
+        // Si el ingreso ya elegido cae en una noche ocupada, se limpia
+        if (fechasOcupadas.includes(fechaInicio.value)) pickerInicio.clear();
 
-  // Función para validar si una fecha está disponible
-  function validarFecha(input) {
-    const fecha = input.value;
-    if (fechasOcupadas.includes(fecha)) {
-      input.setCustomValidity('Esta fecha no está disponible');
-      input.reportValidity();
-    } 
-    else {
-      input.setCustomValidity('');
-    }
+        actualizarLimiteFin(fechaInicio.value);
+        calcularCostoTotal();
+      })
+      .catch(() => {});
   }
 
   // Función para calcular el costo total (precio de la habitación por noche + servicios extras elegidos)
@@ -536,7 +591,8 @@
     if (fechaInicio.value && fechaFin.value && selectHabitacion.value) {
       const inicio = new Date(fechaInicio.value);
       const fin = new Date(fechaFin.value);
-      const dias = Math.ceil((fin - inicio) / (1000 * 60 * 60 * 24)) + 1;
+      // Noches de hospedaje (ingreso 14:00-15:00, salida 11:00-12:00): el día de salida no se cobra
+      const dias = Math.max(1, Math.round((fin - inicio) / (1000 * 60 * 60 * 24)));
       const precioBase = parseFloat(selectHabitacion.selectedOptions[0].dataset.precio);
       const precioServiciosExtra = Array.from(document.querySelectorAll('.servicio-extra-check:checked'))
         .reduce((total, checkbox) => total + parseFloat(checkbox.dataset.precio || 0), 0);
@@ -547,19 +603,6 @@
 
   // Event Listeners
   selectHabitacion.addEventListener('change', actualizarFechasDeshabilitadas);
-  fechaInicio.addEventListener('change', function() {
-    validarFecha(this);
-    fechaFin.min = this.value; // La fecha fin no puede ser anterior a la fecha inicio
-    actualizarHabitacionesDisponibles();
-    calcularCostoTotal();
-  });
-
-  fechaFin.addEventListener('change', function() {
-    validarFecha(this);
-    actualizarHabitacionesDisponibles();
-    calcularCostoTotal();
-  });
-
   document.querySelectorAll('.servicio-extra-check').forEach(checkbox => {
     checkbox.addEventListener('change', calcularCostoTotal);
   });
@@ -576,7 +619,7 @@
 
     // Verificar si alguna fecha está ocupada
     const fechasSeleccionadas = [];
-    for (let d = new Date(inicio); d <= fin; d.setDate(d.getDate() + 1)) {
+    for (let d = new Date(inicio); d < fin; d.setDate(d.getDate() + 1)) {
       fechasSeleccionadas.push(d.toISOString().split('T')[0]);
     }
 
@@ -682,21 +725,120 @@
   const editCliente = document.getElementById('edit_cliente');
   const editHabitacion = document.getElementById('edit_habitacion');
 
+  /* Calendarios del formulario de edición: misma lógica que el de crear (sin fechas
+     pasadas, sin noches ya reservadas, salida = mínimo día siguiente al ingreso),
+     excluyendo la propia reserva de las noches ocupadas. */
+  let editFechasOcupadas = [];
+  let editInicioOriginal = '';
+  let editFinOriginal = '';
+
+  const sumarDias = (fecha, n) => {
+    const d = new Date(fecha + 'T00:00:00');
+    d.setDate(d.getDate() + n);
+    return flatpickr.formatDate(d, 'Y-m-d');
+  };
+
+  const editPickerInicio = flatpickr(editFechaInicio, {
+    locale: 'es', dateFormat: 'Y-m-d', altInput: true, altFormat: 'd/m/Y', minDate: HOY, static: true,
+    onChange: function(selectedDates, valor) {
+      actualizarLimiteFinEdit(valor);
+      calcularCostoTotalEdit();
+    }
+  });
+
+  const editPickerFin = flatpickr(editFechaFin, {
+    locale: 'es', dateFormat: 'Y-m-d', altInput: true, altFormat: 'd/m/Y', minDate: HOY, static: true,
+    onChange: calcularCostoTotalEdit
+  });
+
+  // Costo de referencia (noches x precio de la habitación + servicios extras). El valor
+  // definitivo lo recalcula el servidor al guardar con la misma fórmula.
+  function calcularCostoTotalEdit() {
+    if (!editFechaInicio.value || !editFechaFin.value || !editHabitacion.value) return;
+
+    const noches = Math.max(1, Math.round(
+      (new Date(editFechaFin.value) - new Date(editFechaInicio.value)) / (1000 * 60 * 60 * 24)
+    ));
+    const precioBase = parseFloat(editHabitacion.selectedOptions[0].dataset.precio) || 0;
+    const precioServicios = Array.from(document.querySelectorAll('.servicio-extra-check-editar:checked'))
+      .reduce((total, checkbox) => total + parseFloat(checkbox.dataset.precio || 0), 0);
+
+    editCosto.value = (noches * precioBase + precioServicios).toFixed(2);
+  }
+
+  document.querySelectorAll('.servicio-extra-check-editar').forEach(checkbox => {
+    checkbox.addEventListener('change', calcularCostoTotalEdit);
+  });
+
+  function actualizarLimiteFinEdit(inicio) {
+    let minimo = inicio ? sumarDias(inicio, 1) : HOY;
+    if (minimo < HOY) minimo = HOY;
+    // Una reserva ya vencida conserva su fecha de salida original aunque sea pasada
+    if (editFinOriginal && editFinOriginal < minimo && inicio && editFinOriginal >= sumarDias(inicio, 1)) {
+      minimo = editFinOriginal;
+    }
+    editPickerFin.set('minDate', minimo);
+
+    // La salida puede coincidir con el día en que empieza la siguiente reserva
+    const maximo = inicio ? (editFechasOcupadas.filter(f => f > inicio).sort()[0] || null) : null;
+    editPickerFin.set('maxDate', maximo);
+
+    if (editFechaFin.value && (editFechaFin.value < minimo || (maximo && editFechaFin.value > maximo))) {
+      editPickerFin.clear();
+    }
+  }
+
+  function cargarFechasOcupadasEdit(idHabitacion, idReserva) {
+    if (!idHabitacion) {
+      editFechasOcupadas = [];
+      editPickerInicio.set('disable', []);
+      actualizarLimiteFinEdit(editFechaInicio.value);
+      return Promise.resolve();
+    }
+
+    return fetch(`/reserva/fechas-ocupadas/${idHabitacion}?excluir=${idReserva}`)
+      .then(response => response.json())
+      .then(data => {
+        editFechasOcupadas = data.fechas_ocupadas || [];
+        editPickerInicio.set('disable', editFechasOcupadas);
+
+        if (editFechasOcupadas.includes(editFechaInicio.value)) editPickerInicio.clear();
+        actualizarLimiteFinEdit(editFechaInicio.value);
+      })
+      .catch(() => {});
+  }
+
+  editHabitacion.addEventListener('change', () => {
+    calcularCostoTotalEdit();
+    cargarFechasOcupadasEdit(editHabitacion.value, editId.value).then(calcularCostoTotalEdit);
+  });
+
   document.querySelectorAll('.btn-abrir-editar').forEach(boton => {
       boton.addEventListener('click', () => {
-          // Debug: mostrar valores
-          console.log('Fecha inicio:', boton.getAttribute('data-fecha-inicio'));
-          console.log('Fecha fin:', boton.getAttribute('data-fecha-fin'));
-          
           editId.value = boton.getAttribute('data-id');
           editCosto.value = boton.getAttribute('data-costo-total');
-          editFechaInicio.value = boton.getAttribute('data-fecha-inicio');
-          editFechaFin.value = boton.getAttribute('data-fecha-fin');
           editEstado.value = boton.getAttribute('data-estado');
           // set selects by id
           editTrabajador.value = boton.getAttribute('data-trabajador-id');
           editCliente.value = boton.getAttribute('data-cliente-id');
           editHabitacion.value = boton.getAttribute('data-habitacion-id');
+
+          editInicioOriginal = boton.getAttribute('data-fecha-inicio').substring(0, 10);
+          editFinOriginal = boton.getAttribute('data-fecha-fin').substring(0, 10);
+
+          // Si la estadía ya empezó, el ingreso no se puede mover (queda bloqueado);
+          // si no, solo se permiten fechas desde hoy.
+          const yaEmpezo = editInicioOriginal < HOY;
+          editPickerInicio.set('minDate', yaEmpezo ? editInicioOriginal : HOY);
+          editPickerInicio.set('clickOpens', !yaEmpezo);
+          editPickerInicio.setDate(editInicioOriginal, false);
+          editPickerFin.setDate(editFinOriginal, false);
+
+          cargarFechasOcupadasEdit(editHabitacion.value, editId.value).then(() => {
+            editPickerFin.setDate(editFinOriginal, false);
+            // Se muestra el costo con la fórmula vigente (noches), que es el que se guardará
+            calcularCostoTotalEdit();
+          });
 
           const idsServiciosExtra = (boton.getAttribute('data-servicios-extra') || '')
             .split(',')
