@@ -154,10 +154,7 @@
             <input type="file" id="comprobante" name="comprobante" accept="image/*" required>
           </div>
 
-          <div class="campo-form">
-            <label>Estado:</label>
-            <input type="number" name="estado" value="1" required>
-          </div>
+          <input type="hidden" name="estado" value="1">
 
           <div class="campo-form">
             <label>Cliente:</label>

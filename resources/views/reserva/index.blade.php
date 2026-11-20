@@ -201,10 +201,7 @@
             <input type="number" name="costo_total" id="costo_total" step="0.01" required readonly>
           </div>
 
-          <div class="campo-form">
-            <label>Estado:</label>
-            <input type="number" name="estado" value="1" required>
-          </div>
+          <input type="hidden" name="estado" value="1">
         </div>
 
         <div class="form-columna">

@@ -54,9 +54,14 @@ class DashboardController extends Controller
             ->with(['cliente.persona', 'habitaciones'])
             ->get();
 
+        // Ingresos del mes = pagos completados de las reservas del mes en curso (las que
+        // inician este mes), sin importar la fecha en que se registró cada pago. Así el
+        // total coincide con el "Total cobrado" del reporte de reservas filtrado por mes.
         $ingresosMes = (float) Pago::where('estado', 1)
-            ->whereMonth('fecha', $hoy->month)
-            ->whereYear('fecha', $hoy->year)
+            ->whereHas('reserva', function ($query) use ($hoy) {
+                $query->whereMonth('fecha_inicio', $hoy->month)
+                    ->whereYear('fecha_inicio', $hoy->year);
+            })
             ->sum('monto');
 
         // Calendario de ocupación del mes: se arma una vez, con TODAS las habitaciones,

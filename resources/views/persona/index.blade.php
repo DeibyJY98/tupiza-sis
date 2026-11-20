@@ -108,22 +108,22 @@
 
             <div class="campo-form">
                 <label>Nombre:</label>
-                <input type="text" name="nombre" required>
+                <input type="text" name="nombre" pattern="[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+( [A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)*" title="Solo letras y espacios, sin números ni caracteres especiales" maxlength="255" class="solo-letras" required>
             </div>
 
             <div class="campo-form">
                 <label>Apellido:</label>
-                <input type="text" name="apellido" required>
+                <input type="text" name="apellido" pattern="[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+( [A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)*" title="Solo letras y espacios, sin números ni caracteres especiales" maxlength="255" class="solo-letras" required>
             </div>
 
             <div class="campo-form">
                 <label>Cédula:</label>
-                <input type="text" name="cedula" required>
+                <input type="text" name="cedula" pattern="\d{7}.*" title="Los primeros 7 caracteres de la cédula deben ser números" maxlength="255" required>
             </div>
 
             <div class="campo-form">
                 <label>Celular:</label>
-                <input type="text" name="celular" required>
+                <input type="text" name="celular" pattern="\d{7}.*" title="Los primeros 7 caracteres del celular deben ser números" maxlength="255" required>
             </div>
 
             <div class="campo-form">
@@ -131,10 +131,7 @@
                 <input type="email" name="correo" required>
             </div>
 
-            <div class="campo-form">
-                <label>Estado:</label>
-                <input type="number" name="estado" value="1" required>
-            </div>
+            <input type="hidden" name="estado" value="1">
 
             <div class="modal-footer">
                 <button type="button" class="btn-cancelarM" id="cancelarModal">Cancelar</button>
@@ -158,22 +155,22 @@
 
             <div class="campo-form">
                 <label>Nombre:</label>
-                <input type="text" name="nombre" id="edit_nombre" required>
+                <input type="text" name="nombre" id="edit_nombre" pattern="[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+( [A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)*" title="Solo letras y espacios, sin números ni caracteres especiales" maxlength="255" class="solo-letras" required>
             </div>
 
             <div class="campo-form">
                 <label>Apellido:</label>
-                <input type="text" name="apellido" id="edit_apellido" required>
+                <input type="text" name="apellido" id="edit_apellido" pattern="[A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+( [A-Za-zÁÉÍÓÚÜÑáéíóúüñ]+)*" title="Solo letras y espacios, sin números ni caracteres especiales" maxlength="255" class="solo-letras" required>
             </div>
 
             <div class="campo-form">
                 <label>Cédula:</label>
-                <input type="text" name="cedula" id="edit_cedula" required>
+                <input type="text" name="cedula" id="edit_cedula" pattern="\d{7}.*" title="Los primeros 7 caracteres de la cédula deben ser números" maxlength="255" required>
             </div>
 
             <div class="campo-form">
                 <label>Celular:</label>
-                <input type="text" name="celular" id="edit_celular" required>
+                <input type="text" name="celular" id="edit_celular" pattern="\d{7}.*" title="Los primeros 7 caracteres del celular deben ser números" maxlength="255" required>
             </div>
 
             <div class="campo-form">
@@ -270,5 +267,14 @@
         if (e.target === modalEliminar) modalEliminar.style.display = 'none';
     });
 </script>
+<script>
+  // Nombre y apellido: se descartan al escribir/pegar los números y caracteres especiales
+  document.querySelectorAll('.solo-letras').forEach(input => {
+    input.addEventListener('input', () => {
+      input.value = input.value.replace(/[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ ]/g, '').replace(/ {2,}/g, ' ');
+    });
+  });
+</script>
+
 
 @endsection

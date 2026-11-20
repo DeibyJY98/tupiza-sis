@@ -120,13 +120,7 @@
                 <input type="number" name="planta" required min="1">
             </div>
 
-            <div class="campo-form">
-                <label>Estado:</label>
-                <select name="estado" required>
-                    <option value="1">Disponible</option>
-                    <option value="0">No Disponible</option>
-                </select>
-            </div>
+            <input type="hidden" name="estado" value="1">
 
             <div class="campo-form">
                 <label>Tipo de Habitación:</label>

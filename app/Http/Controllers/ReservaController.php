@@ -454,13 +454,23 @@ class ReservaController extends Controller
 
   public function exportarPdf(Request $request)
   {
-    $consulta = Reserva::with(['cliente.persona', 'trabajador.persona', 'habitaciones', 'habitacionReservas.serviciosExtras']);
+    $consulta = Reserva::with(['cliente.persona', 'trabajador.persona', 'habitaciones', 'habitacionReservas.serviciosExtras', 'pagos']);
 
     if ($request->filled('ids')) {
       $consulta->whereIn('id', $request->input('ids'));
     }
 
-    $filas = $consulta->get()->map(fn (Reserva $reserva) => [
+    $reservas = $consulta->get();
+
+    // Total facturado del filtro aplicado: suma del costo de las reservas no canceladas
+    // (las canceladas aparecen en el listado pero no se facturan).
+    $totalFacturado = $reservas->where('estado', 1)->sum('costo_total');
+
+    // Total cobrado: pagos completados (estado 1) de las reservas listadas, sin importar
+    // en qué mes se registraron (el dashboard solo suma los del mes en curso).
+    $totalCobrado = $reservas->flatMap->pagos->where('estado', 1)->sum('monto');
+
+    $filas = $reservas->map(fn (Reserva $reserva) => [
       $reserva->id,
       \Illuminate\Support\Carbon::parse($reserva->fecha_inicio)->format('d/m/Y'),
       \Illuminate\Support\Carbon::parse($reserva->fecha_fin)->format('d/m/Y'),
@@ -477,7 +487,11 @@ class ReservaController extends Controller
       'Reporte de Reservas',
       ['ID', 'Fecha Inicio', 'Fecha Fin', 'Costo Total', 'Trabajador', 'Cliente', 'Habitación(es)', 'Servicios Extra', 'Estado', 'Estadía'],
       $filas,
-      'reservas.pdf'
+      'reservas.pdf',
+      [
+        ['Total facturado (reservas no canceladas)', 'Bs. ' . number_format($totalFacturado, 2)],
+        ['Total cobrado (pagos completados)', 'Bs. ' . number_format($totalCobrado, 2)],
+      ]
     );
   }
 

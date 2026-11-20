@@ -23,10 +23,10 @@ class PersonaController extends Controller
     {
         try {
             $request->validate([
-                'nombre' => 'required|string|max:255',
-                'apellido' => 'required|string|max:255',
-                'cedula' => 'required|string|max:255|unique:personas,cedula',
-                'celular' => 'required|string|max:255',
+                'nombre' => 'required|string|max:255|regex:/^\p{L}+( \p{L}+)*$/u',
+                'apellido' => 'required|string|max:255|regex:/^\p{L}+( \p{L}+)*$/u',
+                'cedula' => 'required|string|max:255|regex:/^\d{7}/|unique:personas,cedula',
+                'celular' => 'required|string|max:255|regex:/^\d{7}/',
                 'correo' => 'required|email|max:255',
                 'estado' => 'required|numeric'
             ], $this->rules);
@@ -58,10 +58,10 @@ class PersonaController extends Controller
         try {
             $modificar = $request->validate([
                 'id' => 'required|exists:personas,id',
-                'nombre' => 'sometimes|string|max:255',
-                'apellido' => 'sometimes|string|max:255',
-                'cedula' => 'sometimes|string|max:255|unique:personas,cedula,'.$request->id,
-                'celular' => 'sometimes|string|max:255',
+                'nombre' => 'sometimes|string|max:255|regex:/^\p{L}+( \p{L}+)*$/u',
+                'apellido' => 'sometimes|string|max:255|regex:/^\p{L}+( \p{L}+)*$/u',
+                'cedula' => 'sometimes|string|max:255|regex:/^\d{7}/|unique:personas,cedula,'.$request->id,
+                'celular' => 'sometimes|string|max:255|regex:/^\d{7}/',
                 'correo' => 'sometimes|email|max:255',
                 'estado' => 'sometimes|numeric'
             ], $this->rules);
@@ -122,19 +122,23 @@ class PersonaController extends Controller
         'nombre.required' => 'El nombre es obligatorio.',
         'nombre.string' => 'El nombre debe ser texto.',
         'nombre.max' => 'El nombre no puede exceder 255 caracteres.',
+        'nombre.regex' => 'El nombre solo puede contener letras y espacios (sin números ni caracteres especiales).',
 
         'apellido.required' => 'El apellido es obligatorio.',
         'apellido.string' => 'El apellido debe ser texto.',
         'apellido.max' => 'El apellido no puede exceder 255 caracteres.',
+        'apellido.regex' => 'El apellido solo puede contener letras y espacios (sin números ni caracteres especiales).',
 
         'cedula.required' => 'La cédula es obligatoria.',
         'cedula.string' => 'La cédula debe ser texto.',
         'cedula.max' => 'La cédula no puede exceder 255 caracteres.',
+        'cedula.regex' => 'Los primeros 7 caracteres de la cédula deben ser números.',
         'cedula.unique' => 'Esta cédula ya está registrada.',
 
         'celular.required' => 'El celular es obligatorio.',
         'celular.string' => 'El celular debe ser texto.',
         'celular.max' => 'El celular no puede exceder 255 caracteres.',
+        'celular.regex' => 'Los primeros 7 caracteres del celular deben ser números.',
 
         'correo.required' => 'El correo es obligatorio.',
         'correo.email' => 'Debe ingresar un correo válido.',

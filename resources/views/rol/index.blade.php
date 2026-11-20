@@ -113,10 +113,7 @@
                 <input type="text" name="nombre" required>
             </div>
 
-            <div class="campo-form">
-                <label>Estado:</label>
-                <input type="number" name="estado" value="1" required>
-            </div>
+            <input type="hidden" name="estado" value="1">
 
             <div class="campo-form">
                 <label>Permisos:</label>

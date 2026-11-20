@@ -129,10 +129,7 @@
                 <input type="number" name="salario" step="0.01" min="0" required>
             </div>
 
-            <div class="campo-form">
-                <label>Estado:</label>
-                <input type="number" name="estado" value="1" required>
-            </div>
+            <input type="hidden" name="estado" value="1">
 
             <div class="modal-footer">
                 <button type="button" class="btn-cancelar" id="cancelarModal">Cancelar</button>

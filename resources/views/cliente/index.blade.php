@@ -119,10 +119,7 @@
                 <input type="text" name="razon_social" required>
             </div>
 
-            <div class="campo-form">
-                <label>Estado:</label>
-                <input type="number" name="estado" value="1" required>
-            </div>
+            <input type="hidden" name="estado" value="1">
 
             <div class="modal-footer">
                 <button type="button" class="btn-cancelarM" id="cancelarModal">Cancelar</button>

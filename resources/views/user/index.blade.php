@@ -136,10 +136,7 @@
             <input type="file" id="foto" name="foto" accept="image/*">
           </div>
 
-          <div class="campo-form">
-            <label>Estado:</label>
-            <input type="number" name="estado" value="1" required>
-          </div>
+          <input type="hidden" name="estado" value="1">
 
           <div class="campo-form">
             <label>Rol:</label>

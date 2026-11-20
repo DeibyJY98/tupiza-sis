@@ -11,6 +11,9 @@
         th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; word-break: break-word; }
         th { background-color: #1f2229; color: #fff; }
         tr:nth-child(even) td { background-color: #f5f5f5; }
+        .resumen { margin-top: 6px; text-align: right; font-size: 12px; font-weight: bold; }
+        .resumen span { display: inline-block; padding: 2px 4px 0 12px; }
+        .resumen-inicio { margin-top: 12px; border-top: 2px solid #1f2229; padding-top: 6px; }
     </style>
 </head>
 <body>
@@ -39,5 +42,9 @@
             @endforelse
         </tbody>
     </table>
+
+    @foreach (($resumen ?? []) as [$etiqueta, $valor])
+        <div class="resumen {{ $loop->first ? 'resumen-inicio' : '' }}"><span>{{ $etiqueta }}: {{ $valor }}</span></div>
+    @endforeach
 </body>
 </html>

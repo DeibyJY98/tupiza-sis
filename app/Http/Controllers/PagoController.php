@@ -188,7 +188,13 @@ class PagoController extends Controller
             $consulta->whereIn('id', $request->input('ids'));
         }
 
-        $filas = $consulta->get()->map(fn (Pago $pago) => [
+        $pagos = $consulta->get();
+
+        // Suma de los pagos realizados del filtro aplicado: solo los completados
+        // (estado 1); los cancelados aparecen en el listado pero no suman.
+        $totalPagado = $pagos->where('estado', 1)->sum('monto');
+
+        $filas = $pagos->map(fn (Pago $pago) => [
             $pago->id,
             $pago->fecha ? \Illuminate\Support\Carbon::parse($pago->fecha)->format('d/m/Y') : '',
             $pago->id_reserva ? 'RES-' . $pago->id_reserva : '',
@@ -201,7 +207,8 @@ class PagoController extends Controller
             'Reporte de Pagos',
             ['ID', 'Fecha', 'Reserva', 'Cliente', 'Monto', 'Estado'],
             $filas,
-            'pagos.pdf'
+            'pagos.pdf',
+            [['Total pagado (pagos completados)', 'Bs. ' . number_format($totalPagado, 2)]]
         );
     }
 
