@@ -8,6 +8,7 @@ use App\Models\Persona;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Rules\Password;
 
 class UserController extends Controller
 {
@@ -28,7 +29,7 @@ class UserController extends Controller
       $request->validate([
         'username' => 'required|string|max:30|unique:users,username',
         'email' => 'required|email|unique:users,email',
-        'password' => 'required|string|min:5|max:50',
+        'password' => ['required', 'string', 'max:50', self::reglaPassword()],
         'foto' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
         'id_rol' => 'required|exists:rols,id',
         'id_persona' => 'required|exists:personas,id',
@@ -54,8 +55,7 @@ class UserController extends Controller
         $nuevo = User::create($nuevo);
     } 
     catch(ValidationException $e){
-      $mensajes = collect($e->errors())->flatten()->join(' ');
-      return back()->with('error', $mensajes);
+      return $this->errorEnModal($request, $e, 'crear');
     }
     catch (\Exception $e) {
       return back()->with('error', $e->getMessage());
@@ -71,7 +71,7 @@ class UserController extends Controller
       $modificar = $request->validate([
         'username' => 'sometimes|string|max:30|unique:users,username,' . $request->id,
         'email' => 'sometimes|email|unique:users,email,' . $request->id,
-        'password' => 'sometimes|string|min:5|max:50',
+        'password' => ['sometimes', 'string', 'max:50', self::reglaPassword()],
         'foto' => 'sometimes|image|mimes:jpg,jpeg,png|max:2048',
         'id_rol' => 'sometimes|exists:rols,id',
         'id_persona' => 'sometimes|exists:personas,id',
@@ -95,8 +95,7 @@ class UserController extends Controller
       $dato->update($modificar);
     } 
     catch(ValidationException $e){
-      $mensajes = collect($e->errors())->flatten()->join(' ');
-      return back()->with('error', $mensajes);
+      return $this->errorEnModal($request, $e, 'editar');
     }
     catch (\Exception $e) {
       return back()->with('error', $e->getMessage());
@@ -134,6 +133,12 @@ class UserController extends Controller
     );
   }
 
+  // Política de contraseñas: mínimo 8 caracteres, con mayúsculas, minúsculas y números.
+  private static function reglaPassword(): Password
+  {
+    return Password::min(8)->mixedCase()->numbers();
+  }
+
   private $rules = [
     'username.required' => 'El nombre de usuario es obligatorio.',
     'username.string'   => 'El nombre de usuario debe ser texto válido.',
@@ -145,7 +150,9 @@ class UserController extends Controller
 
     'password.required' => 'La contraseña es obligatoria.',
     'password.string'   => 'La contraseña debe ser una cadena de texto.',
-    'password.min'      => 'La contraseña debe tener al menos 5 caracteres.',
+    'password.min'      => 'La contraseña debe tener al menos 8 caracteres.',
+    'password.mixed'    => 'La contraseña debe incluir al menos una letra mayúscula y una minúscula.',
+    'password.numbers'  => 'La contraseña debe incluir al menos un número.',
     'password.max'      => 'La contraseña no puede tener más de 50 caracteres.',
 
     'foto.image'        => 'El archivo debe ser una imagen.',

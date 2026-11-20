@@ -63,7 +63,48 @@ it('rechaza un usuario que no existe', function () {
         'password' => 'lo-que-sea',
     ]);
 
-    $response->assertSessionHas('errorUser');
+    // Mismo mensaje que con una contraseña incorrecta: no revela si el usuario existe
+    $response->assertSessionHas('password', 'Usuario o contraseña incorrectos.');
+    $response->assertSessionMissing('errorUser');
+});
+
+it('usa el mismo mensaje para usuario inexistente y para contraseña incorrecta', function () {
+    $rolAdmin = crearRol('administrador');
+    [$user] = crearUsuarioConRol($rolAdmin, 'admin1');
+
+    $conUsuarioReal = $this->post('/login', ['username' => $user->username, 'password' => 'incorrecta']);
+    $mensajeReal = session('password');
+
+    $this->post('/login', ['username' => 'fantasma', 'password' => 'incorrecta']);
+
+    expect($mensajeReal)->toBe(session('password'));
+});
+
+it('bloquea el login tras 5 intentos fallidos aunque luego se use la contraseña correcta', function () {
+    $rolAdmin = crearRol('administrador');
+    [$user, $password] = crearUsuarioConRol($rolAdmin, 'admin1');
+
+    foreach (range(1, 5) as $i) {
+        $this->post('/login', ['username' => $user->username, 'password' => 'incorrecta']);
+    }
+
+    $response = $this->post('/login', ['username' => $user->username, 'password' => $password]);
+
+    expect(session('password'))->toContain('Demasiados intentos fallidos');
+    expect(session('auth_guard'))->toBeNull();
+    expect(Auth::guard('administrador')->check())->toBeFalse();
+});
+
+it('un login correcto reinicia el contador de intentos fallidos', function () {
+    $rolAdmin = crearRol('administrador');
+    [$user, $password] = crearUsuarioConRol($rolAdmin, 'admin1');
+
+    foreach (range(1, 4) as $i) {
+        $this->post('/login', ['username' => $user->username, 'password' => 'incorrecta']);
+    }
+
+    $this->post('/login', ['username' => $user->username, 'password' => $password])
+        ->assertRedirect(route('dashboard'));
 });
 
 it('logout cierra la sesión del guard activo', function () {

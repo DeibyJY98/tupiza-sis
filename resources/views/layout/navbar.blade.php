@@ -114,5 +114,52 @@
   <footer class="app-footer">Tupizasis - Santa Cruz</footer>
 
   <script src="{{ asset('js/navbar.js')}}" defer></script>
+
+  {{-- Error de validación dentro del modal (crear/editar) en vez de cerrarlo: ver Controller::errorEnModal() --}}
+  @if (session('modal') && session('error'))
+  <script>
+    (function () {
+      const modal = document.getElementById(@json(session('modal') === 'editar' ? 'modalEditar' : 'modalCrear'));
+      const form = modal ? modal.querySelector('form') : null;
+      if (!form) return;
+
+      const mensaje = @json(session('error'));
+      const datos = @json(old());
+
+      // Rellena los campos con lo que el usuario ya había escrito (sin contraseñas ni archivos)
+      Object.entries(datos).forEach(([nombre, valor]) => {
+        if (nombre === '_token') return;
+        form.querySelectorAll('[name="' + nombre + '"], [name="' + nombre + '[]"]').forEach(campo => {
+          if (campo.type === 'file' || campo.type === 'password') return;
+
+          if (campo.type === 'checkbox' || campo.type === 'radio') {
+            campo.checked = Array.isArray(valor) ? valor.map(String).includes(campo.value) : String(valor) === campo.value;
+          } else if (campo._flatpickr) {
+            campo._flatpickr.setDate(valor, false);
+          } else {
+            campo.value = valor;
+          }
+        });
+      });
+
+      // Campos que necesitan recalcular algo tras restaurarse (data-restaurar-evento="change")
+      form.querySelectorAll('[data-restaurar-evento]').forEach(campo => {
+        campo.dispatchEvent(new Event(campo.dataset.restaurarEvento, { bubbles: true }));
+      });
+
+      // El mensaje se muestra dentro del modal; se quita el aviso duplicado de la parte superior
+      document.querySelectorAll('.alerta-error').forEach(aviso => {
+        if (!modal.contains(aviso) && aviso.textContent.trim() === mensaje.trim()) aviso.remove();
+      });
+      const aviso = document.createElement('div');
+      aviso.className = 'alerta-error';
+      aviso.textContent = mensaje;
+      form.insertBefore(aviso, form.firstChild);
+
+      modal.style.display = 'flex';
+    })();
+  </script>
+  @endif
+
 </body>
 </html>

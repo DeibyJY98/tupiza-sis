@@ -45,7 +45,7 @@ it('rechaza mover fecha_inicio de una reserva hacia el pasado (la regla sigue ap
 
 it('editar solo los servicios extras actualiza el monto del pivot y sincroniza la asociación real', function () {
     $habitacion = crearHabitacionDePrueba(); // precio 100/noche
-    $reserva = crearReservaActiva($habitacion, Carbon::today()->addDay(), Carbon::today()->addDays(2)); // 2 noches
+    $reserva = crearReservaActiva($habitacion, Carbon::today()->addDay(), Carbon::today()->addDays(3)); // 2 noches
 
     $desayuno = ServicioExtra::create(['nombre' => 'Desayuno', 'descripcion' => 'Buffet', 'precio' => 30, 'estado' => 1]);
     $spa = ServicioExtra::create(['nombre' => 'Spa', 'descripcion' => 'Masaje', 'precio' => 70, 'estado' => 1]);

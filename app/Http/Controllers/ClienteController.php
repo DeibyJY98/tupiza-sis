@@ -42,8 +42,7 @@ class ClienteController extends Controller
             Cliente::create($nuevo);
         }
         catch (ValidationException $e) {
-            $mensajes = collect($e->errors())->flatten()->join(' ');
-            return back()->with('error', $mensajes);
+            return $this->errorEnModal($request, $e, 'crear');
         }
         catch (\Exception $e) {
             return back()->with('error', $e->getMessage());
@@ -72,8 +71,7 @@ class ClienteController extends Controller
             $dato->update($modificar);
         }
         catch (ValidationException $e) {
-            $mensajes = collect($e->errors())->flatten()->join(' ');
-            return back()->with('error', $mensajes);
+            return $this->errorEnModal($request, $e, 'editar');
         }
         catch (\Exception $e) {
             return back()->with('error', $e->getMessage());

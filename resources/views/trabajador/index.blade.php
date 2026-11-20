@@ -17,7 +17,7 @@
     </div>
 @endif
 
-<main class="container">
+<div class="container">
     <div class="header-section">
         <h1>Gestión de Trabajadores</h1>
         <div class="right-buttons">
@@ -96,13 +96,13 @@
             </tbody>
         </table>
     </div>
-</main>
+</div>
 
 {{-- ventana modal crear --}}
 <div id="modalCrear" class="modal-overlay" style="display:none">
     <div class="modal-contenido">
         <div class="modal-header">
-            <h2 style="color: black">Agregar Trabajador</h2>
+            <h2>Agregar Trabajador</h2>
             <button id="cerrarModalCrear" class="btn-cerrar">&times;</button>
         </div>
 
@@ -132,7 +132,7 @@
             <input type="hidden" name="estado" value="1">
 
             <div class="modal-footer">
-                <button type="button" class="btn-cancelar" id="cancelarModal">Cancelar</button>
+                <button type="button" class="btn-cancelarM" id="cancelarModal">Cancelar</button>
                 <button type="submit" class="btn-guardar">Guardar</button>
             </div>
         </form>
@@ -143,7 +143,7 @@
 <div id="modalEditar" class="modal-overlay" style="display:none">
     <div class="modal-contenido">
         <div class="modal-header">
-            <h2 style="color: black">Editar Trabajador</h2>
+            <h2>Editar Trabajador</h2>
             <button id="cerrarModalEditar" class="btn-cerrar">&times;</button>
         </div>
 
@@ -177,7 +177,7 @@
             </div>
 
             <div class="modal-footer">
-                <button type="button" class="btn-cancelar" id="cancelarEditar">Cancelar</button>
+                <button type="button" class="btn-cancelarM" id="cancelarEditar">Cancelar</button>
                 <button type="submit" class="btn-guardar">Guardar Cambios</button>
             </div>
         </form>
@@ -188,7 +188,7 @@
 <div id="modalEliminar" class="modal-overlay" style="display:none">
     <div class="modal-contenido">
         <div class="modal-header">
-            <h2 style="color: black">Eliminar Trabajador</h2>
+            <h2>Eliminar Trabajador</h2>
             <button id="cerrarModalEliminar" class="btn-cerrar">&times;</button>
         </div>
         <span>¿Seguro que desea eliminar este trabajador?</span>
@@ -198,7 +198,7 @@
             <input type="hidden" name="inputIdEliminar" id="inputIdEliminar">
 
             <div class="modal-footer">
-                <button type="button" class="btn-cancelar" id="cancelarEliminar">Cancelar</button>
+                <button type="button" class="btn-cancelarM" id="cancelarEliminar">Cancelar</button>
                 <button type="submit" class="btn-guardar">Eliminar</button>
             </div>
         </form>

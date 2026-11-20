@@ -4,10 +4,18 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 
 class AuthController extends Controller
 {
+    // Intentos fallidos permitidos por usuario + IP antes de bloquear temporalmente el login
+    private const MAX_INTENTOS = 5;
+    private const SEGUNDOS_BLOQUEO = 60;
+    private const MENSAJE_CREDENCIALES = 'Usuario o contraseña incorrectos.';
+
     public function welcome()
     {
         return view('welcome');
@@ -25,10 +33,23 @@ class AuthController extends Controller
             'password' => 'required|string',           
         ]);
         
-        $user = User::with('rol')->where('username', $request->username)->first(); 
-        
-        if(!$user){
-            return back()->with('errorUser', 'El usuario no existe');
+        // Límite de intentos (anti fuerza bruta): clave por usuario + IP
+        $clave = Str::lower($request->username) . '|' . $request->ip();
+
+        if (RateLimiter::tooManyAttempts($clave, self::MAX_INTENTOS)) {
+            $segundos = RateLimiter::availableIn($clave);
+            return back()->with('password', "Demasiados intentos fallidos. Intente nuevamente en {$segundos} segundos.");
+        }
+
+        $user = User::with('rol')->where('username', $request->username)->first();
+
+        // Mensaje único para usuario inexistente o contraseña incorrecta: no revela qué
+        // usuarios existen (enumeración de usuarios). Si el usuario no existe se hace igual
+        // una comprobación de hash para que el tiempo de respuesta sea similar.
+        if (!$user) {
+            Hash::check($request->password, Hash::make('contrasena-ficticia'));
+            RateLimiter::hit($clave, self::SEGUNDOS_BLOQUEO);
+            return back()->with('password', self::MENSAJE_CREDENCIALES);
         }
 
         switch($user->id_rol)
@@ -59,13 +80,15 @@ class AuthController extends Controller
 
         if (Auth::guard($guard)->attempt($credentials)){
             // Recordar con qué guard inició sesión, para poder resolverlo en middlewares/vistas
+            RateLimiter::clear($clave);
             $request->session()->put('auth_guard', $guard);
 
             return redirect()->route('dashboard');
         }
         else
         {
-            return back()->with('password', 'la constraseña es incorrecta');
+            RateLimiter::hit($clave, self::SEGUNDOS_BLOQUEO);
+            return back()->with('password', self::MENSAJE_CREDENCIALES);
         }
 
     }

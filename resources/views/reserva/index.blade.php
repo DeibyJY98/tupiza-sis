@@ -163,7 +163,7 @@
         <div class="form-columna">
           <div class="campo-form">
             <label>Habitación:</label>
-            <select name="id_habitacion" id="selectHabitacion" required>
+            <select name="id_habitacion" id="selectHabitacion" data-restaurar-evento="change" required>
               <option value="">-- Seleccione una habitación --</option>
               @foreach ($habitaciones as $hab)
                   @php

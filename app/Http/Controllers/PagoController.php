@@ -84,8 +84,7 @@ class PagoController extends Controller
         });
       }
       catch(ValidationException $e){
-        $mensajes = collect($e->errors())->flatten()->join(' ');
-        return back()->with('error', $mensajes);
+        return $this->errorEnModal($request, $e, 'crear');
       }
       catch (\Exception $e) {
         Log::error('Error al registrar el pago: ' . $e->getMessage(), ['exception' => $e]);
@@ -153,8 +152,7 @@ class PagoController extends Controller
             });
         }
         catch(ValidationException $e){
-            $mensajes = collect($e->errors())->flatten()->join(' ');
-            return back()->with('error', $mensajes);
+            return $this->errorEnModal($request, $e, 'editar');
         }
         catch (\Exception $e) {
             Log::error('Error al actualizar el pago: ' . $e->getMessage(), ['exception' => $e]);

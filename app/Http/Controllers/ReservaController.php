@@ -123,13 +123,13 @@ class ReservaController extends Controller
       });
     }
     catch(ValidationException $e){
-        $mensajes = collect($e->errors())->flatten()->join(' ');
 
-        return back()->with('error', $mensajes);
+        return $this->errorEnModal($request, $e, 'crear');
     }
     catch (ReservaException $e) {
         // Mensaje de una regla de negocio propia: seguro para mostrar tal cual.
-        return back()->with('error', $e->getMessage());
+        // Se muestra dentro del modal (p. ej. "la habitación no está disponible") sin cerrarlo.
+        return $this->errorEnModal($request, $e->getMessage(), 'crear');
     }
     catch (\Exception $e) {
         // Cualquier otra excepción (BD, etc.) no se muestra al usuario tal cual

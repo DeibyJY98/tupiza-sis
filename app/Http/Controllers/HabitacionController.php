@@ -49,9 +49,8 @@ class HabitacionController extends Controller
         
     } 
     catch(ValidationException $e){
-      $mensajes = collect($e->errors())->flatten()->join(' ');
         
-      return back()->with('error', $mensajes);
+      return $this->errorEnModal($request, $e, 'crear');
     }
     catch (\Exception $e) {
       return back()->with('error', $e->getMessage());
@@ -81,9 +80,8 @@ class HabitacionController extends Controller
       //dd($dato);
     } 
     catch(ValidationException $e){
-      $mensajes = collect($e->errors())->flatten()->join(' ');
       //  dd($mensajes);
-      return back()->with('error', $mensajes);
+      return $this->errorEnModal($request, $e, 'editar');
     }
     catch (\Exception $e) {
       //  dd($e->getMessage());
