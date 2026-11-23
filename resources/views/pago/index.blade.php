@@ -54,6 +54,7 @@
         <th><span>Cliente</span></th>         
         <th><span>Cédula</span></th>         
         <th><span>Monto</span></th>   
+        <th><span>Saldo reserva</span></th>
         <th><span>Estado</span></th>         
         <th><span>Acciones</span></th>
       </tr>
@@ -68,7 +69,8 @@
         <td>RES-{{ $dato['reserva']['id'] ?? '' }}</td>
         <td>{{ isset($dato['cliente']['nombre']) ? $dato['cliente']['nombre'].' '.$dato['cliente']['apellido'] : '' }}</td>
         <td>{{ isset($dato['cliente']['cedula']) ? $dato['cliente']['cedula'] : '' }}</td>
-        <td>{{ $dato['reserva']['costo_total'] ?? '' }}</td>
+        <td>{{ $dato['monto'] ?? '' }}</td>
+        <td>{{ number_format($dato['reserva']['saldo_pendiente'] ?? 0, 2) }}</td>
         <td>
           @if ($dato['estado'] == 1)
             <span class="badge-estado activo">Completado</span>
@@ -134,7 +136,7 @@
             <select name="id_reserva" id="selectReserva" required>
               <option value="">-- Seleccione una Reserva --</option>
               @foreach ($reservasDisponibles as $res)
-                <option value="{{ $res->id }}" data-precio="{{ $res->costo_total ?? 0 }}" data-cliente="{{ $res->id_cliente }}">RES-{{ $res->id }}</option>
+                <option value="{{ $res->id }}" data-precio="{{ $res->saldo_pendiente ?? $res->costo_total ?? 0 }}" data-cliente="{{ $res->id_cliente }}">RES-{{ $res->id }} (saldo Bs. {{ number_format($res->saldo_pendiente ?? $res->costo_total ?? 0, 2) }})</option>
               @endforeach
             </select>
           </div>
@@ -146,7 +148,7 @@
 
           <div class="campo-form">
             <label>Monto:</label>
-            <input type="number" name="monto" id="monto" readonly required>
+            <input type="number" name="monto" id="monto" min="0.01" step="0.01" required>
           </div>
 
           <div class="form-group">
@@ -363,7 +365,9 @@
   selectReserva.addEventListener('change', function() {
       const opcion = this.options[this.selectedIndex];
       const precio = opcion.getAttribute('data-precio');
+      // Se propone el SALDO PENDIENTE (no el costo total); se puede bajar para un pago parcial.
       inputMonto.value = precio ? precio : '';
+      inputMonto.max = precio ? precio : '';
 
       const idCliente = opcion.getAttribute('data-cliente');
       selectCliente.value = idCliente || '';

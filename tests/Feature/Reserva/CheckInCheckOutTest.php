@@ -70,7 +70,9 @@ it('el check-out libera la habitación de inmediato sin esperar la hora de check
 
     $habitacion = crearHabitacionDePrueba();
     $reserva = crearReservaActiva($habitacion, Carbon::today(), Carbon::today());
-    $reserva->update(['estado_estadia' => Reserva::ESTADIA_CHECK_IN]);
+    $reserva->update(['costo_total' => 100, 'estado_estadia' => Reserva::ESTADIA_CHECK_IN]);
+    [$cliente] = crearClienteYTrabajadorDePrueba();
+    Pago::create(['fecha' => Carbon::today(), 'comprobante' => 'storage/comprobante/x.jpg', 'monto' => 100, 'estado' => 1, 'id_cliente' => $cliente->id, 'id_reserva' => $reserva->id]);
 
     expect($habitacion->fresh()->estado)->toBe(0); // ocupada mientras hay check-in
 
@@ -150,4 +152,82 @@ it('un pago que cubre el saldo no retrocede una reserva que ya hizo check-in', f
 
     // Sigue en check_in, no "retrocede" a confirmada por el pago.
     expect($reserva->fresh()->estado_estadia)->toBe(Reserva::ESTADIA_CHECK_IN);
+});
+
+it('rechaza el check-out si la reserva tiene saldo pendiente (p. ej. servicios extras agregados después del pago)', function () {
+    $habitacion = crearHabitacionDePrueba();
+    $reserva = crearReservaActiva($habitacion, Carbon::today(), Carbon::today());
+    $reserva->update(['costo_total' => 120, 'estado_estadia' => Reserva::ESTADIA_CHECK_IN]);
+    [$cliente] = crearClienteYTrabajadorDePrueba();
+    Pago::create(['fecha' => Carbon::today(), 'comprobante' => 'storage/comprobante/x.jpg', 'monto' => 100, 'estado' => 1, 'id_cliente' => $cliente->id, 'id_reserva' => $reserva->id]);
+
+    $response = $this->post(route('reserva.check-out', $reserva->id));
+
+    $response->assertSessionHas('error');
+    expect(session('error'))->toContain('saldo pendiente de Bs. 20.00')
+        ->and($reserva->fresh()->estado_estadia)->toBe(Reserva::ESTADIA_CHECK_IN);
+});
+
+it('un pago cancelado no cuenta para permitir el check-out', function () {
+    $habitacion = crearHabitacionDePrueba();
+    $reserva = crearReservaActiva($habitacion, Carbon::today(), Carbon::today());
+    $reserva->update(['costo_total' => 100, 'estado_estadia' => Reserva::ESTADIA_CHECK_IN]);
+    [$cliente] = crearClienteYTrabajadorDePrueba();
+    Pago::create(['fecha' => Carbon::today(), 'comprobante' => 'storage/comprobante/x.jpg', 'monto' => 100, 'estado' => 0, 'id_cliente' => $cliente->id, 'id_reserva' => $reserva->id]);
+
+    $this->post(route('reserva.check-out', $reserva->id))->assertSessionHas('error');
+    expect($reserva->fresh()->estado_estadia)->toBe(Reserva::ESTADIA_CHECK_IN);
+});
+
+it('al subir el costo (servicio extra) una reserva confirmada con pago >= 50 % sigue confirmada, aunque quede saldo', function () {
+    $habitacion = crearHabitacionDePrueba();
+    $reserva = crearReservaActiva($habitacion, Carbon::today()->addDay(), Carbon::today()->addDay());
+    $reserva->update(['costo_total' => 100, 'estado_estadia' => Reserva::ESTADIA_CONFIRMADA]);
+    [$cliente] = crearClienteYTrabajadorDePrueba();
+    Pago::create(['fecha' => Carbon::today(), 'comprobante' => 'storage/comprobante/x.jpg', 'monto' => 100, 'estado' => 1, 'id_cliente' => $cliente->id, 'id_reserva' => $reserva->id]);
+
+    $extra = \App\Models\ServicioExtra::create(['nombre' => 'Lavandería', 'descripcion' => '', 'precio' => 20, 'estado' => 1]);
+
+    $this->postJson('/reserva/editar', ['id' => $reserva->id, 'servicios_extra' => [$extra->id]])
+        ->assertJson(['success' => true]);
+
+    $reserva = $reserva->fresh();
+    expect((float) $reserva->costo_total)->toBe(120.0)
+        ->and($reserva->estado_estadia)->toBe(Reserva::ESTADIA_CONFIRMADA)
+        ->and($reserva->saldoPendiente())->toBe(20.0);
+});
+
+it('al subir el costo una reserva confirmada vuelve a pendiente si el pago ya no alcanza el 50 %', function () {
+    $habitacion = crearHabitacionDePrueba();
+    $reserva = crearReservaActiva($habitacion, Carbon::today()->addDay(), Carbon::today()->addDay());
+    $reserva->update(['costo_total' => 100, 'estado_estadia' => Reserva::ESTADIA_CONFIRMADA]);
+    [$cliente] = crearClienteYTrabajadorDePrueba();
+    Pago::create(['fecha' => Carbon::today(), 'comprobante' => 'storage/comprobante/x.jpg', 'monto' => 50, 'estado' => 1, 'id_cliente' => $cliente->id, 'id_reserva' => $reserva->id]);
+
+    $extra = \App\Models\ServicioExtra::create(['nombre' => 'Cena', 'descripcion' => '', 'precio' => 20, 'estado' => 1]);
+
+    $this->postJson('/reserva/editar', ['id' => $reserva->id, 'servicios_extra' => [$extra->id]])
+        ->assertJson(['success' => true]);
+
+    // 50 de 120 = 41.7 % < 50 %
+    expect($reserva->fresh()->estado_estadia)->toBe(Reserva::ESTADIA_PENDIENTE);
+});
+
+it('un pago de exactamente el 50 % del costo confirma la reserva pendiente', function () {
+    otorgarPermisoAlUsuarioActual('pago');
+    $habitacion = crearHabitacionDePrueba();
+    $reserva = crearReservaActiva($habitacion, Carbon::today(), Carbon::today());
+    $reserva->update(['costo_total' => 100]);
+    [$cliente] = crearClienteYTrabajadorDePrueba();
+
+    $this->post('/pago', [
+        'fecha' => Carbon::today()->toDateString(),
+        'monto' => 50,
+        'comprobante' => comprobanteFake('comprobante.jpg'),
+        'estado' => 1,
+        'id_cliente' => $cliente->id,
+        'id_reserva' => $reserva->id,
+    ])->assertRedirect(route('mostrar.pago'));
+
+    expect($reserva->fresh()->estado_estadia)->toBe(Reserva::ESTADIA_CONFIRMADA);
 });

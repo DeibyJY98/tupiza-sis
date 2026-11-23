@@ -17,6 +17,10 @@ class Reserva extends Model
     public const ESTADIA_CHECK_IN = 'check_in';
     public const ESTADIA_CHECK_OUT = 'check_out';
 
+    // Fracción mínima del costo_total que debe estar pagada para que la reserva
+    // pase de "pendiente" a "confirmada" (50 %). El pago total solo se exige al check-out.
+    public const PORCENTAJE_MINIMO_CONFIRMACION = 0.5;
+
     protected $fillable = [
         //'identificador',
         'fecha_inicio',
@@ -56,6 +60,27 @@ class Reserva extends Model
     public function pagos()
     {
         return $this->hasMany(Pago::class, 'id_reserva');
+    }
+
+    /** Suma de los pagos completados (estado = 1); los cancelados no cuentan. */
+    public function montoPagado(): float
+    {
+        return (float) $this->pagos()->where('estado', 1)->sum('monto');
+    }
+
+    /** true si lo pagado alcanza al menos el 50 % del costo_total (y hay algún pago). */
+    public function cubreMinimoConfirmacion(): bool
+    {
+        $pagado = $this->montoPagado();
+
+        return $pagado > 0
+            && round($pagado, 2) >= round((float) $this->costo_total * self::PORCENTAJE_MINIMO_CONFIRMACION, 2);
+    }
+
+    /** Lo que falta por cubrir del costo_total (nunca negativo). */
+    public function saldoPendiente(): float
+    {
+        return max(0, round((float) $this->costo_total - $this->montoPagado(), 2));
     }
 
     /**
@@ -113,6 +138,7 @@ class Reserva extends Model
             'fecha_inicio'=> date('Y-m-d', strtotime($this->fecha_inicio)),
             'fecha_fin'=> date('Y-m-d', strtotime($this->fecha_fin)),
             'costo_total' => $this->costo_total,
+            'saldo_pendiente' => $this->saldoPendiente(),
             'estado' => $this->estado,
             'estado_estadia' => $this->estado_estadia,
 

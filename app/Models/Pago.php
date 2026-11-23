@@ -45,6 +45,7 @@ class Pago extends Model
             'reserva'           => $this->reserva ? [
                 'id'             => $this->reserva->id,
                 'costo_total'    => $this->reserva->costo_total,
+                'saldo_pendiente'=> $this->reserva->saldoPendiente(),
                 'fecha_inicio'   => $this->reserva->fecha_inicio ? \Illuminate\Support\Carbon::parse($this->reserva->fecha_inicio)->format('Y-m-d') : null,
                 'fecha_fin'      => $this->reserva->fecha_fin ? \Illuminate\Support\Carbon::parse($this->reserva->fecha_fin)->format('Y-m-d') : null,
                 'estado_estadia' => $this->reserva->estado_estadia,

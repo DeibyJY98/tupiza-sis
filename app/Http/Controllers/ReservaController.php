@@ -204,6 +204,19 @@ class ReservaController extends Controller
 
                   $dato->update($modificar);
 
+                  // Si el costo cambió, la confirmación (pago >= 50 % del costo) debe
+                  // reevaluarse: "confirmada" que ya no llega al 50 % vuelve a "pendiente",
+                  // y "pendiente" que sí lo alcanza pasa a "confirmada".
+                  if (array_key_exists('costo_total', $modificar)) {
+                      $dato->refresh();
+                      $cubierta = $dato->cubreMinimoConfirmacion();
+                      if ($dato->estado_estadia === Reserva::ESTADIA_CONFIRMADA && !$cubierta) {
+                          $dato->update(['estado_estadia' => Reserva::ESTADIA_PENDIENTE]);
+                      } elseif ($dato->estado_estadia === Reserva::ESTADIA_PENDIENTE && $cubierta) {
+                          $dato->update(['estado_estadia' => Reserva::ESTADIA_CONFIRMADA]);
+                      }
+                  }
+
                   if ($request->has('id_habitacion')) {
                       // Cambia la habitación: se recrea el pivot completo (habitación + servicios extras)
                       HabitacionReserva::where('id_reserva', $dato->id)->delete();
@@ -329,6 +342,13 @@ class ReservaController extends Controller
 
           if ($reserva->estado_estadia !== Reserva::ESTADIA_CHECK_IN) {
               throw new ReservaException('Esta reserva no tiene un check-in registrado.');
+          }
+
+          // No se libera la habitación si la estadía no está pagada por completo
+          // (p. ej. se agregaron servicios extras después del último pago).
+          $saldo = $reserva->saldoPendiente();
+          if ($saldo > 0) {
+              throw new ReservaException('No se puede hacer check-out: la reserva tiene un saldo pendiente de Bs. ' . number_format($saldo, 2) . '. Registra el pago antes de continuar.');
           }
 
           $reserva->update(['estado_estadia' => Reserva::ESTADIA_CHECK_OUT]);

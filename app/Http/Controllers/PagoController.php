@@ -33,6 +33,7 @@ class PagoController extends Controller
           ->withSum(['pagos as monto_pagado' => fn ($query) => $query->where('estado', 1)], 'monto')
           ->get()
           ->filter(fn (Reserva $reserva) => (float) ($reserva->monto_pagado ?? 0) < (float) $reserva->costo_total)
+          ->each(fn (Reserva $reserva) => $reserva->saldo_pendiente = round((float) $reserva->costo_total - (float) ($reserva->monto_pagado ?? 0), 2))
           ->values();
 
       return view("pago.index", compact('datos', 'reservas', 'clientes', 'reservasDisponibles'));
@@ -234,8 +235,8 @@ class PagoController extends Controller
     }
 
     /**
-     * P1.1: si los pagos "completados" de la reserva ya cubren su costo_total, la
-     * marca como 'confirmada'. Antes el estado del pago y el de la reserva no se
+     * P1.1: si los pagos "completados" de la reserva cubren al menos el 50 % de su
+     * costo_total (Reserva::PORCENTAJE_MINIMO_CONFIRMACION), la marca como 'confirmada'. Antes el estado del pago y el de la reserva no se
      * hablaban entre sí. Solo actúa si la estadía sigue en 'pendiente': no
      * retrocede una reserva que ya tiene check-in/check-out, ni una cancelada.
      */
@@ -247,9 +248,7 @@ class PagoController extends Controller
             return;
         }
 
-        $pagado = Pago::where('id_reserva', $idReserva)->where('estado', 1)->sum('monto');
-
-        if ($pagado >= $reserva->costo_total) {
+        if ($reserva->cubreMinimoConfirmacion()) {
             $reserva->update(['estado_estadia' => Reserva::ESTADIA_CONFIRMADA]);
         }
     }
