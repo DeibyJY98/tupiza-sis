@@ -489,7 +489,7 @@ class ReservaController extends Controller
       $filas,
       'reservas.pdf',
       [
-        ['Total facturado (reservas no canceladas)', 'Bs. ' . number_format($totalFacturado, 2)],
+        /*['Total facturado (reservas no canceladas)', 'Bs. ' . number_format($totalFacturado, 2)],*/
         ['Total cobrado (pagos completados)', 'Bs. ' . number_format($totalCobrado, 2)],
       ]
     );
